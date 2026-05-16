@@ -1,0 +1,399 @@
+{% extends 'base.html' %}
+
+{% block title %}Contact Us - Budget Master{% endblock %}
+
+{% block content %}
+<div class="contact-page">
+
+    <!-- Hero -->
+    <section class="policy-hero">
+        <div class="container">
+            <span class="section-badge">Get in Touch</span>
+            <h1>Contact <span class="gradient-text">Us</span></h1>
+            <p>Have a question, suggestion, or issue? We'd love to hear from you. Our team typically responds within 24 hours.</p>
+        </div>
+    </section>
+
+    <!-- Contact Content -->
+    <section class="contact-content-section">
+        <div class="container">
+            <div class="contact-layout">
+
+                <!-- Contact Info Cards (left) -->
+                <div class="contact-info-column">
+
+                    <div class="contact-info-card reveal">
+                        <div class="contact-info-icon" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <div class="contact-info-body">
+                            <h3>Email Us</h3>
+                            <p>For general enquiries and support</p>
+                            <a href="mailto:hello@budgetmaster.com">hello@budgetmaster.com</a>
+                        </div>
+                    </div>
+
+                    <div class="contact-info-card reveal">
+                        <div class="contact-info-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="contact-info-body">
+                            <h3>Privacy & Legal</h3>
+                            <p>For privacy requests and legal matters</p>
+                            <a href="mailto:privacy@budgetmaster.com">privacy@budgetmaster.com</a>
+                        </div>
+                    </div>
+
+                    <div class="contact-info-card reveal">
+                        <div class="contact-info-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                            <i class="fas fa-bug"></i>
+                        </div>
+                        <div class="contact-info-body">
+                            <h3>Bug Reports</h3>
+                            <p>Found an issue? Let us know</p>
+                            <a href="mailto:bugs@budgetmaster.com">bugs@budgetmaster.com</a>
+                        </div>
+                    </div>
+
+                    <div class="contact-info-card reveal">
+                        <div class="contact-info-icon" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">
+                            <i class="fab fa-github"></i>
+                        </div>
+                        <div class="contact-info-body">
+                            <h3>GitHub</h3>
+                            <p>Open-source contributions welcome</p>
+                            <a href="https://github.com/budgetmaster" target="_blank">github.com/budgetmaster</a>
+                        </div>
+                    </div>
+
+                    <!-- Response Time Banner -->
+                    <div class="response-banner reveal">
+                        <div class="response-banner-inner">
+                            <i class="fas fa-clock"></i>
+                            <div>
+                                <strong>Average Response Time</strong>
+                                <span>We typically respond within <em>24 hours</em> on business days.</span>
+                            </div>
+                        </div>
+                        <div class="response-hours">
+                            <div class="hours-item">
+                                <span class="day">Mon – Fri</span>
+                                <span class="hours">9am – 6pm</span>
+                                <span class="status open">Open</span>
+                            </div>
+                            <div class="hours-item">
+                                <span class="day">Saturday</span>
+                                <span class="hours">10am – 2pm</span>
+                                <span class="status open">Open</span>
+                            </div>
+                            <div class="hours-item">
+                                <span class="day">Sunday</span>
+                                <span class="hours">—</span>
+                                <span class="status closed">Closed</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Contact Form (right) -->
+                <div class="contact-form-column reveal">
+                    <div class="contact-form-card">
+                        <div class="contact-form-header">
+                            <h2><i class="fas fa-paper-plane"></i> Send Us a Message</h2>
+                            <p>Fill in the form below and we'll get back to you as soon as possible.</p>
+                        </div>
+
+                        <!-- Flash message placeholder for form feedback -->
+                        <div id="formFeedback"></div>
+
+                        <form id="contactForm" class="contact-form" novalidate>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="contact_name">
+                                        <i class="fas fa-user"></i> Full Name <span class="required">*</span>
+                                    </label>
+                                    <input type="text" id="contact_name" name="name" required
+                                           placeholder="Your full name">
+                                    <span class="field-error" id="nameError"></span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="contact_email">
+                                        <i class="fas fa-envelope"></i> Email Address <span class="required">*</span>
+                                    </label>
+                                    <input type="email" id="contact_email" name="email" required
+                                           placeholder="your@email.com">
+                                    <span class="field-error" id="emailError"></span>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="contact_subject">
+                                    <i class="fas fa-tag"></i> Subject <span class="required">*</span>
+                                </label>
+                                <select id="contact_subject" name="subject" required>
+                                    <option value="">Select a topic...</option>
+                                    <option value="general">💬 General Enquiry</option>
+                                    <option value="support">🛠️ Technical Support</option>
+                                    <option value="bug">🐛 Bug Report</option>
+                                    <option value="feature">💡 Feature Request</option>
+                                    <option value="privacy">🔒 Privacy / Data Request</option>
+                                    <option value="billing">💳 Billing / Account</option>
+                                    <option value="other">📦 Other</option>
+                                </select>
+                                <span class="field-error" id="subjectError"></span>
+                            </div>
+
+                            <!-- Bug report extra fields (shown conditionally) -->
+                            <div id="bugFields" class="extra-fields" style="display:none;">
+                                <div class="form-group">
+                                    <label for="bug_steps">
+                                        <i class="fas fa-list-ol"></i> Steps to Reproduce
+                                    </label>
+                                    <textarea id="bug_steps" name="bug_steps" rows="3"
+                                              placeholder="1. Go to...&#10;2. Click on...&#10;3. See error..."></textarea>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="contact_message">
+                                    <i class="fas fa-comment-alt"></i> Message <span class="required">*</span>
+                                </label>
+                                <div class="textarea-wrapper">
+                                    <textarea id="contact_message" name="message" rows="6" required
+                                              placeholder="Tell us how we can help you..."></textarea>
+                                    <span class="char-counter" id="charCounter">0 / 1000</span>
+                                </div>
+                                <span class="field-error" id="messageError"></span>
+                            </div>
+
+                            <!-- Optional: logged-in user info -->
+                            {% if session.user_id %}
+                            <div class="autofill-notice">
+                                <i class="fas fa-info-circle"></i>
+                                Sending as <strong>{{ session.username }}</strong> ({{ session.user_id }})
+                            </div>
+                            {% endif %}
+
+                            <div class="form-group form-check-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="agree_terms" name="agree_terms" required>
+                                    <span>I agree to the <a href="/privacy" target="_blank">Privacy Policy</a> and consent to Budget Master processing my enquiry.</span>
+                                </label>
+                                <span class="field-error" id="agreeError"></span>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-block btn-lg" id="submitBtn">
+                                <i class="fas fa-paper-plane"></i>
+                                <span id="submitText">Send Message</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="faq-section">
+        <div class="container">
+            <div class="section-header reveal">
+                <span class="section-badge">FAQ</span>
+                <h2 class="section-title">Frequently Asked <span class="gradient-text">Questions</span></h2>
+                <p class="section-subtitle">Quick answers to the most common questions.</p>
+            </div>
+
+            <div class="faq-grid reveal">
+                <div class="faq-item">
+                    <div class="faq-question" onclick="toggleFaq(this)">
+                        <span>Is Budget Master free to use?</span>
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes! Budget Master is completely free to use. You can register and access all core features — expense tracking, budget management, loan tracking, insights, and reports — at no cost.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question" onclick="toggleFaq(this)">
+                        <span>Does Budget Master connect to my bank account?</span>
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>No. Budget Master is a manual tracking tool. You enter your transactions yourself. We never connect to your bank, credit card, or any financial institution. This means your banking credentials are never at risk.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question" onclick="toggleFaq(this)">
+                        <span>How do I delete my account and data?</span>
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Send us an email at <a href="mailto:privacy@budgetmaster.com" style="color:var(--primary);">privacy@budgetmaster.com</a> with your registered email address, and we'll permanently delete your account and all associated data within 30 days.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question" onclick="toggleFaq(this)">
+                        <span>Is my financial data secure?</span>
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes. Passwords are hashed and never stored in plain text. All data is isolated per user account and transmitted over HTTPS. We never sell or share your financial data with third parties. See our <a href="/privacy" style="color:var(--primary);">Privacy Policy</a> for full details.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question" onclick="toggleFaq(this)">
+                        <span>Can I export my financial data?</span>
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Yes! Navigate to the <strong>Reports</strong> page and click <strong>Download TXT</strong> next to any month to export a detailed plain-text report of your transactions and budget status.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question" onclick="toggleFaq(this)">
+                        <span>I forgot my password. What do I do?</span>
+                        <i class="fas fa-chevron-down faq-icon"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <p>Go to the <a href="/forgot" style="color:var(--primary);">Forgot Password</a> page, enter your registered email address, and follow the reset instructions sent to your inbox.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ===== Character counter =====
+const messageInput = document.getElementById('contact_message');
+const charCounter = document.getElementById('charCounter');
+const MAX_CHARS = 1000;
+
+if (messageInput) {
+    messageInput.addEventListener('input', () => {
+        const len = messageInput.value.length;
+        charCounter.textContent = `${len} / ${MAX_CHARS}`;
+        charCounter.style.color = len > MAX_CHARS * 0.9 ? 'var(--warning)' : 'var(--text-muted)';
+        if (len > MAX_CHARS) {
+            messageInput.value = messageInput.value.slice(0, MAX_CHARS);
+        }
+    });
+}
+
+// ===== Show/hide bug fields =====
+const subjectSelect = document.getElementById('contact_subject');
+const bugFields = document.getElementById('bugFields');
+
+if (subjectSelect) {
+    subjectSelect.addEventListener('change', () => {
+        bugFields.style.display = subjectSelect.value === 'bug' ? 'block' : 'none';
+    });
+}
+
+// ===== Form validation & submission =====
+const form = document.getElementById('contactForm');
+
+form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    let valid = true;
+
+    // Clear previous errors
+    document.querySelectorAll('.field-error').forEach(el => el.textContent = '');
+    document.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(el => {
+        el.style.borderColor = '';
+    });
+
+    const name = document.getElementById('contact_name');
+    const email = document.getElementById('contact_email');
+    const subject = document.getElementById('contact_subject');
+    const message = document.getElementById('contact_message');
+    const agree = document.getElementById('agree_terms');
+
+    if (!name.value.trim()) {
+        document.getElementById('nameError').textContent = 'Please enter your name.';
+        name.style.borderColor = 'var(--danger)';
+        valid = false;
+    }
+
+    if (!email.value.trim() || !email.value.includes('@')) {
+        document.getElementById('emailError').textContent = 'Please enter a valid email address.';
+        email.style.borderColor = 'var(--danger)';
+        valid = false;
+    }
+
+    if (!subject.value) {
+        document.getElementById('subjectError').textContent = 'Please select a topic.';
+        subject.style.borderColor = 'var(--danger)';
+        valid = false;
+    }
+
+    if (!message.value.trim() || message.value.trim().length < 20) {
+        document.getElementById('messageError').textContent = 'Please enter a message of at least 20 characters.';
+        message.style.borderColor = 'var(--danger)';
+        valid = false;
+    }
+
+    if (!agree.checked) {
+        document.getElementById('agreeError').textContent = 'You must agree to our Privacy Policy to submit.';
+        valid = false;
+    }
+
+    if (!valid) return;
+
+    // Simulate submission (replace with real fetch/backend call)
+    const btn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('submitText');
+    btn.disabled = true;
+    btnText.textContent = 'Sending...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Sending...</span>';
+
+    setTimeout(() => {
+        // Show success message
+        const feedback = document.getElementById('formFeedback');
+        feedback.innerHTML = `
+            <div class="flash-message flash-success" style="position:relative; top:auto; right:auto; margin-bottom:20px; animation:slideIn 0.3s ease;">
+                <i class="fas fa-check-circle"></i>
+                <span>Message sent! We'll get back to you within 24 hours.</span>
+            </div>
+        `;
+        feedback.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        form.reset();
+        charCounter.textContent = '0 / 1000';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> <span id="submitText">Send Message</span>';
+    }, 1500);
+});
+
+// ===== FAQ Accordion =====
+function toggleFaq(el) {
+    const item = el.parentElement;
+    const answer = item.querySelector('.faq-answer');
+    const icon = el.querySelector('.faq-icon');
+    const isOpen = item.classList.contains('open');
+
+    // Close all
+    document.querySelectorAll('.faq-item').forEach(i => {
+        i.classList.remove('open');
+        i.querySelector('.faq-answer').style.maxHeight = null;
+        i.querySelector('.faq-icon').style.transform = 'rotate(0deg)';
+    });
+
+    // Open this one if it was closed
+    if (!isOpen) {
+        item.classList.add('open');
+        answer.style.maxHeight = answer.scrollHeight + 'px';
+        icon.style.transform = 'rotate(180deg)';
+    }
+}
+</script>
+{% endblock %}

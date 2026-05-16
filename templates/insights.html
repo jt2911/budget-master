@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+
+{% block title %}AI Insights - Budget Master{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <div class="page-header reveal">
+        <div class="page-title">
+            <h1><i class="fas fa-brain"></i> AI Financial Insights</h1>
+            <p>Personalized recommendations based on your spending patterns</p>
+        </div>
+    </div>
+    
+    <!-- Summary Cards -->
+    <div class="insights-summary reveal">
+        <div class="summary-card">
+            <div class="summary-icon income">
+                <i class="fas fa-arrow-up"></i>
+            </div>
+            <div class="summary-info">
+                <span class="label">Total Income</span>
+                <span class="value">RM {{ "%.2f"|format(total_income) }}</span>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-icon expense">
+                <i class="fas fa-arrow-down"></i>
+            </div>
+            <div class="summary-info">
+                <span class="label">Total Spent</span>
+                <span class="value">RM {{ "%.2f"|format(total_spent) }}</span>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-icon {% if total_income - total_spent >= 0 %}savings{% else %}danger{% endif %}">
+                <i class="fas fa-{% if total_income - total_spent >= 0 %}piggy-bank{% else %}exclamation-triangle{% endif %}"></i>
+            </div>
+            <div class="summary-info">
+                <span class="label">Net Savings</span>
+                <span class="value {% if total_income - total_spent < 0 %}negative{% endif %}">
+                    RM {{ "%.2f"|format(total_income - total_spent) }}
+                </span>
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-icon rate">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="summary-info">
+                <span class="label">Savings Rate</span>
+                <span class="value">
+                    {% if total_income > 0 %}
+                    {{ "%.1f"|format((total_income - total_spent) / total_income * 100) }}%
+                    {% else %}
+                    N/A
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- AI Suggestions -->
+    <div class="insights-grid">
+        <div class="suggestions-section reveal">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-robot"></i> AI Recommendations</h2>
+                    <span class="ai-badge"><i class="fas fa-sparkles"></i> Powered by AI</span>
+                </div>
+                <div class="card-body">
+                    {% if suggestions %}
+                    <div class="suggestions-list">
+                        {% for suggestion in suggestions %}
+                        <div class="suggestion-card {{ suggestion.type }}">
+                            <div class="suggestion-icon">
+                                {{ suggestion.icon }}
+                            </div>
+                            <div class="suggestion-content">
+                                <h3>{{ suggestion.title }}</h3>
+                                <p>{{ suggestion.message }}</p>
+                                <div class="suggestion-action">
+                                    <i class="fas fa-arrow-right"></i>
+                                    <span>{{ suggestion.action }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-brain"></i>
+                        <h3>No Insights Yet</h3>
+                        <p>Add more transactions to receive personalized financial advice.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Spending Breakdown -->
+        <div class="chart-section reveal">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-chart-pie"></i> Spending Breakdown</h2>
+                </div>
+                <div class="card-body">
+                    {% if category_data %}
+                    <div class="chart-container large">
+                        <canvas id="spendingChart"></canvas>
+                    </div>
+                    <div class="category-legend">
+                        {% for cat, amount in category_data.items() %}
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: var(--chart-color-{{ loop.index }})"></span>
+                            <span class="legend-label">{{ cat }}</span>
+                            <span class="legend-value">RM {{ "%.2f"|format(amount) }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state small">
+                        <i class="fas fa-chart-pie"></i>
+                        <p>No expense data to display</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categoryData = {{ category_data|tojson|safe }};
+    const ctx = document.getElementById('spendingChart');
+    
+    if (ctx && Object.keys(categoryData).length > 0) {
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(categoryData),
+                datasets: [{
+                    data: Object.values(categoryData),
+                    backgroundColor: [
+                        '#6366f1', '#10b981', '#f59e0b', '#ec4899', 
+                        '#8b5cf6', '#06b6d4', '#84cc16', '#f43f5e'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

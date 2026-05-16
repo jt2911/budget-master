@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - Budget Master{% endblock %}
+{% block content %}
+<div class="dashboard">
+    <div class="dashboard-header reveal">
+        <div class="welcome-section">
+            <h1>Welcome back, <span class="gradient-text">{{ session.username }}</span>! 👋</h1>
+            <p>Here's your financial overview for today</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('expenses') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Transaction
+            </a>
+        </div>
+    </div>
+    
+    <!-- Stats Cards -->
+    <div class="stats-grid reveal">
+        <div class="stat-card income">
+            <div class="stat-icon">
+                <i class="fas fa-arrow-up"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Total Income</span>
+                <span class="stat-value">RM{{ "%.2f"|format(total_income) }}</span>
+            </div>
+            <div class="stat-trend positive">
+                <i class="fas fa-trending-up"></i> +12.5%
+            </div>
+        </div>
+        
+        <div class="stat-card expense">
+            <div class="stat-icon">
+                <i class="fas fa-arrow-down"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Total Expenses</span>
+                <span class="stat-value">RM{{ "%.2f"|format(total_spent) }}</span>
+            </div>
+            <div class="stat-trend negative">
+                <i class="fas fa-trending-down"></i> -3.2%
+            </div>
+        </div>
+        
+        <div class="stat-card balance">
+            <div class="stat-icon">
+                <i class="fas fa-wallet"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Net Balance</span>
+                <span class="stat-value">RM{{ "%.2f"|format(total_income - total_spent) }}</span>
+            </div>
+        </div>
+        
+        <div class="stat-card loans">
+            <div class="stat-icon">
+                <i class="fas fa-hand-holding-usd"></i>
+            </div>
+            <div class="stat-info">
+                <span class="stat-label">Total Loans</span>
+                <span class="stat-value">RM{{ "%.2f"|format(total_loan) }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Dashboard Grid -->
+    <div class="dashboard-grid">
+        <!-- Charts Section -->
+        <div class="dashboard-section charts-section reveal">
+            <div class="section-header">
+                <h2><i class="fas fa-chart-pie"></i> Spending Overview</h2>
+            </div>
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Expenses by Category</h3>
+                    <div class="chart-container">
+                        <canvas id="categoryChart" style="width:100%;height:200px;"></canvas>
+                    </div>                   
+            
+                </div>
+                <div class="chart-card">
+                    <h3>Monthly Trend</h3>
+                    <div class="chart-container">
+                        <canvas id="trendChart" style="width:100%;height:200px;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Budget Progress -->
+        <div class="dashboard-section budget-section reveal">
+            <div class="section-header">
+                <h2><i class="fas fa-piggy-bank"></i> Budget Status</h2>
+                <a href="{{ url_for('budget') }}" class="btn btn-sm btn-ghost">View All</a>
+            </div>
+            <div class="budget-list">
+                {% for category, data in budgets.items() %}
+                {% set percentage = (data.spent / data.limit * 100) if data.limit > 0 else 0 %}
+                <div class="budget-item">
+                    <div class="budget-header">
+                        <span class="budget-category">{{ category }}</span>
+                        <span class="budget-amount">RM{{ "%.0f"|format(data.spent) }}/RM{{ "%.0f"|format(data.limit) }}</span>
+                    </div>
+                    <div class="budget-progress">
+                        <div class="progress-bar {% if percentage > 100 %}danger{% elif percentage > 80 %}warning{% else %}success{% endif %}" 
+                             style="width: {{ [percentage, 100]|min }}%"></div>
+                    </div>
+                    <span class="budget-percentage {% if percentage > 100 %}danger{% elif percentage > 80 %}warning{% endif %}">
+                        {{ "%.0f"|format(percentage) }}%
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Recent Transactions -->
+        <div class="dashboard-section transactions-section reveal">
+            <div class="section-header">
+                <h2><i class="fas fa-receipt"></i> Recent Transactions</h2>
+                <a href="{{ url_for('expenses') }}" class="btn btn-sm btn-ghost">View All</a>
+            </div>
+            <div class="transactions-list">
+                {% if expenses %}
+                    {% for expense in expenses|reverse %}
+                    <div class="transaction-item">
+                        <div class="transaction-icon {{ expense.type }}">
+                            <i class="fas {% if expense.type == 'income' %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
+                        </div>
+                        <div class="transaction-info">
+                            <span class="transaction-category">{{ expense.category }}</span>
+                            <span class="transaction-note">{{ expense.note or 'No note' }}</span>
+                        </div>
+                        <div class="transaction-meta">
+                            <span class="transaction-amount {{ expense.type }}">
+                                {% if expense.type == 'income' %}+{% else %}-{% endif %}RM{{ "%.2f"|format(expense.amount) }}
+                            </span>
+                            <span class="transaction-date">{{ expense.date }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-receipt"></i>
+                        <p>No transactions yet</p>
+                        <a href="{{ url_for('expenses') }}" class="btn btn-primary btn-sm">Add First Transaction</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="dashboard-section actions-section reveal">
+            <div class="section-header">
+                <h2><i class="fas fa-bolt"></i> Quick Actions</h2>
+            </div>
+            <div class="quick-actions">
+                <a href="{{ url_for('expenses') }}" class="action-card">
+                    <div class="action-icon" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <span>Add Expense</span>
+                </a>
+                <a href="{{ url_for('budget') }}" class="action-card">
+                    <div class="action-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                        <i class="fas fa-piggy-bank"></i>
+                    </div>
+                    <span>Set Budget</span>
+                </a>
+                <a href="{{ url_for('loans') }}" class="action-card">
+                    <div class="action-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                        <i class="fas fa-hand-holding-usd"></i>
+                    </div>
+                    <span>Add Loan</span>
+                </a>
+                <a href="{{ url_for('insights') }}" class="action-card">
+                    <div class="action-icon" style="background: linear-gradient(135deg, #ec4899, #db2777);">
+                        <i class="fas fa-lightbulb"></i>
+                    </div>
+                    <span>Get Insights</span>
+                </a>
+                <a href="{{ url_for('report') }}" class="action-card">
+                    <div class="action-icon" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <span>View Report</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // Category Chart
+    const categoryData = {{ category_data|tojson|safe }};
+    const categoryCtx = document.getElementById('categoryChart');
+
+    if (categoryCtx) {
+        if (Object.keys(categoryData).length > 0) {
+            new Chart(categoryCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categoryData),
+                    datasets: [{
+                        data: Object.values(categoryData),
+                        backgroundColor: [
+                            '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { padding: 20, usePointStyle: true }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        } else {
+            categoryCtx.parentElement.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;
+                            justify-content:center;height:200px;color:#94a3b8;">
+                    <i class="fas fa-chart-pie" style="font-size:40px;margin-bottom:12px;"></i>
+                    <p style="margin:0;font-size:14px;">Add expense transactions to see chart</p>
+                </div>`;
+        }
+    }
+
+    // Trend Chart
+    const trendCtx = document.getElementById('trendChart');
+    if (trendCtx) {
+        fetch('/api/chart-data')
+            .then(r => r.json())
+            .then(data => {
+                const months = Object.keys(data.monthly).sort();
+                const expenses = months.map(m => data.monthly[m].expense || 0);
+                const incomes = months.map(m => data.monthly[m].income || 0);
+
+                if (months.length === 0) {
+                    trendCtx.parentElement.innerHTML = `
+                        <div style="display:flex;flex-direction:column;align-items:center;
+                                    justify-content:center;height:200px;color:#94a3b8;">
+                            <i class="fas fa-chart-line" style="font-size:40px;margin-bottom:12px;"></i>
+                            <p style="margin:0;font-size:14px;">Add transactions to see trend</p>
+                        </div>`;
+                    return;
+                }
+
+                new Chart(trendCtx, {
+                    type: 'line',
+                    data: {
+                        labels: months,
+                        datasets: [
+                            {
+                                label: 'Income',
+                                data: incomes,
+                                borderColor: '#10b981',
+                                backgroundColor: 'rgba(16,185,129,0.1)',
+                                fill: true,
+                                tension: 0.4
+                            },
+                            {
+                                label: 'Expenses',
+                                data: expenses,
+                                borderColor: '#6366f1',
+                                backgroundColor: 'rgba(99,102,241,0.1)',
+                                fill: true,
+                                tension: 0.4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+                            x: { grid: { display: false } }
+                        }
+                    }
+                });
+            })
+            .catch(() => {
+                trendCtx.parentElement.innerHTML = `
+                    <div style="display:flex;align-items:center;justify-content:center;
+                                height:200px;color:#94a3b8;font-size:14px;">
+                        Could not load chart data.
+                    </div>`;
+            });
+    }
+
+});
+</script>
+{% endblock %}

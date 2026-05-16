@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Reports - Budget Master{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <div class="page-header reveal">
+        <div class="page-title">
+            <h1><i class="fas fa-file-alt"></i> Financial Reports</h1>
+            <p>Monthly summaries and downloadable reports</p>
+        </div>
+    </div>
+    
+    <div class="reports-grid">
+        {% if sorted_months %}
+            {% for month in sorted_months %}
+            {% set data = monthly_data[month] %}
+            <div class="report-card reveal">
+                <div class="report-header">
+                    <h2>
+                        <i class="fas fa-calendar-alt"></i>
+                        {{ month }}
+                    </h2>
+                    <a href="{{ url_for('download_report', month=month) }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-download"></i> Download TXT
+                    </a>
+                </div>
+                
+                <div class="report-summary">
+                    <div class="summary-item income">
+                        <i class="fas fa-arrow-up"></i>
+                        <div class="summary-details">
+                            <span class="label">Income</span>
+                            <span class="value">RM{{ "%.2f"|format(data.income) }}</span>
+                        </div>
+                    </div>
+                    <div class="summary-item expense">
+                        <i class="fas fa-arrow-down"></i>
+                        <div class="summary-details">
+                            <span class="label">Expenses</span>
+                            <span class="value">RM{{ "%.2f"|format(data.expense) }}</span>
+                        </div>
+                    </div>
+                    <div class="summary-item {% if data.income - data.expense >= 0 %}savings{% else %}deficit{% endif %}">
+                        <i class="fas fa-{% if data.income - data.expense >= 0 %}piggy-bank{% else %}exclamation-triangle{% endif %}"></i>
+                        <div class="summary-details">
+                            <span class="label">Net</span>
+                            <span class="value">RM{{ "%.2f"|format(data.income - data.expense) }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="report-transactions">
+                    <h3>Transactions ({{ data.transactions|length }})</h3>
+                    <div class="transactions-mini-list">
+                        {% for t in data.transactions[:5] %}
+                        <div class="mini-transaction">
+                            <span class="date">{{ t.date }}</span>
+                            <span class="category">{{ t.category }}</span>
+                            <span class="amount {{ t.type }}">
+                                {% if t.type == 'income' %}+{% else %}-{% endif %}RM{{ "%.2f"|format(t.amount) }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                        {% if data.transactions|length > 5 %}
+                        <div class="more-transactions">
+                            +{{ data.transactions|length - 5 }} more transactions
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="empty-state full-width reveal">
+            <i class="fas fa-file-alt"></i>
+            <h3>No Reports Available</h3>
+            <p>Start adding transactions to generate monthly reports.</p>
+            <a href="{{ url_for('expenses') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Transaction
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

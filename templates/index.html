@@ -1,0 +1,389 @@
+{% extends 'base.html' %}
+
+{% block title %}Budget Master - Take Control of Your Finances{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero">
+    <div class="hero-bg">
+        <div class="hero-gradient"></div>
+        <div class="hero-particles" id="particles"></div>
+    </div>
+    
+    <nav class="landing-nav">   
+        <div class="nav-container">
+            <a href="{{ url_for('index') }}" class="nav-logo">
+                <i class="fas fa-wallet"></i>
+                <span>Budget Master</span>
+            </a>
+            <div class="nav-auth">
+                <a href="{{ url_for('login') }}" class="btn btn-ghost">Login</a>
+                <a href="{{ url_for('register') }}" class="btn btn-primary">Get Started</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="hero-content">
+        <div class="hero-text reveal">
+            <span class="hero-badge">🚀 Smart Finance Management</span>
+            <h1 class="hero-title">
+                Master Your
+                <span class="gradient-text">Budget</span>
+                <br>Build Your Future
+            </h1>
+            <p class="hero-subtitle">
+                Track expenses, manage budgets, monitor loans, and get AI-powered insights 
+                to achieve your financial goals faster.
+            </p>
+            <div class="hero-cta">
+                <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-rocket"></i> Start Now
+                </a>
+                <a href="#features" class="btn btn-outline btn-lg">
+                    <i class="fas fa-play-circle"></i> Learn More
+                </a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <span class="stat-number" data-count="10000">0</span>+
+                    <span class="stat-label">Active Users</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" data-count="500">0</span>M+
+                    <span class="stat-label">Tracked</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" data-count="98">0</span>%
+                    <span class="stat-label">Satisfaction</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="hero-visual reveal">
+            <div class="dashboard-preview">
+                <div class="preview-header">
+                    <div class="preview-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <span class="preview-title">Dashboard Preview</span>
+                </div>
+                <div class="preview-content">
+                    <div class="preview-card">
+                        <div class="preview-icon income"><i class="fas fa-arrow-up"></i></div>
+                        <div class="preview-info">
+                            <span>Income</span>
+                            <strong>RM 8,450.00</strong>
+                        </div>
+                    </div>
+                    <div class="preview-card">
+                        <div class="preview-icon expense"><i class="fas fa-arrow-down"></i></div>
+                        <div class="preview-info">
+                            <span>Expenses</span>
+                            <strong>RM 3,280.00</strong>
+                        </div>
+                    </div>
+                    <div class="preview-card">
+                        <div class="preview-icon savings"><i class="fas fa-piggy-bank"></i></div>
+                        <div class="preview-info">
+                            <span>Savings</span>
+                            <strong>RM 5,170.00</strong>
+                        </div>
+                    </div>
+                    <div class="preview-chart">
+                        <canvas id="previewChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="floating-card card-1">
+                <i class="fas fa-chart-line"></i>
+                <span>+23% Growth</span>
+            </div>
+            <div class="floating-card card-2">
+                <i class="fas fa-bell"></i>
+                <span>Budget Alert</span>
+            </div>
+            <div class="floating-card card-3">
+                <i class="fas fa-check-circle"></i>
+                <span>Goal Reached!</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="scroll-indicator">
+        <div class="mouse">
+            <div class="wheel"></div>
+        </div>
+        <span>Scroll to explore</span>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="features" id="features">
+    <div class="container">
+        <div class="section-header reveal">
+            <span class="section-badge">Features</span>
+            <h2 class="section-title">Everything You Need to<br><span class="gradient-text">Master Your Finances</span></h2>
+            <p class="section-subtitle">Powerful tools designed to help you track, plan, and grow your wealth.</p>
+        </div>
+        
+        <div class="features-grid">
+            <div class="feature-card reveal">
+                <div class="feature-icon" style="--accent: #6366f1;">
+                    <i class="fas fa-receipt"></i>
+                </div>
+                <h3>Expense Tracking</h3>
+                <p>Record daily expenses with categories, dates, and notes. Never lose track of where your money goes.</p>
+                <ul class="feature-list">
+                    <li><i class="fas fa-check"></i> Multiple categories</li>
+                    <li><i class="fas fa-check"></i> Quick entry</li>
+                    <li><i class="fas fa-check"></i> Search & filter</li>
+                </ul>
+            </div>
+            
+            <div class="feature-card reveal">
+                <div class="feature-icon" style="--accent: #10b981;">
+                    <i class="fas fa-piggy-bank"></i>
+                </div>
+                <h3>Budget Management</h3>
+                <p>Set spending limits for each category and monitor your progress with visual indicators.</p>
+                <ul class="feature-list">
+                    <li><i class="fas fa-check"></i> Custom budgets</li>
+                    <li><i class="fas fa-check"></i> Overspend alerts</li>
+                    <li><i class="fas fa-check"></i> Progress tracking</li>
+                </ul>
+            </div>
+            
+            <div class="feature-card reveal">
+                <div class="feature-icon" style="--accent: #f59e0b;">
+                    <i class="fas fa-hand-holding-usd"></i>
+                </div>
+                <h3>Loan Management</h3>
+                <p>Track all your loans, calculate remaining balances, and estimate payoff dates automatically.</p>
+                <ul class="feature-list">
+                    <li><i class="fas fa-check"></i> Interest calculation</li>
+                    <li><i class="fas fa-check"></i> Payment tracking</li>
+                    <li><i class="fas fa-check"></i> Payoff projection</li>
+                </ul>
+            </div>
+            
+            <div class="feature-card reveal">
+                <div class="feature-icon" style="--accent: #ec4899;">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h3>AI Insights</h3>
+                <p>Get personalized financial advice based on your spending patterns and habits.</p>
+                <ul class="feature-list">
+                    <li><i class="fas fa-check"></i> Spending analysis</li>
+                    <li><i class="fas fa-check"></i> Smart suggestions</li>
+                    <li><i class="fas fa-check"></i> Goal recommendations</li>
+                </ul>
+            </div>
+            
+            <div class="feature-card reveal">
+                <div class="feature-icon" style="--accent: #8b5cf6;">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <h3>Visual Reports</h3>
+                <p>Beautiful charts and summaries to visualize your financial health at a glance.</p>
+                <ul class="feature-list">
+                    <li><i class="fas fa-check"></i> Monthly summaries</li>
+                    <li><i class="fas fa-check"></i> Category breakdowns</li>
+                    <li><i class="fas fa-check"></i> Trend analysis</li>
+                </ul>
+            </div>
+            
+            <div class="feature-card reveal">
+                <div class="feature-icon" style="--accent: #06b6d4;">
+                    <i class="fas fa-download"></i>
+                </div>
+                <h3>Export Reports</h3>
+                <p>Download detailed reports for any period. Perfect for record-keeping and analysis.</p>
+                <ul class="feature-list">
+                    <li><i class="fas fa-check"></i> TXT export</li>
+                    <li><i class="fas fa-check"></i> Monthly reports</li>
+                    <li><i class="fas fa-check"></i> Custom periods</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How It Works -->
+<section class="how-it-works">
+    <div class="container">
+        <div class="section-header reveal">
+            <span class="section-badge">How It Works</span>
+            <h2 class="section-title">Get Started in<br><span class="gradient-text">3 Simple Steps</span></h2>
+        </div>
+        
+        <div class="steps-container">
+            <div class="step reveal">
+                <div class="step-number">01</div>
+                <div class="step-content">
+                    <h3>Create Account</h3>
+                    <p>Sign up for free in seconds. No credit card required.</p>
+                </div>
+                <div class="step-icon">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+            </div>
+            
+            <div class="step-connector"></div>
+            
+            <div class="step reveal">
+                <div class="step-number">02</div>
+                <div class="step-content">
+                    <h3>Track Finances</h3>
+                    <p>Add your income, expenses, and set budget limits.</p>
+                </div>
+                <div class="step-icon">
+                    <i class="fas fa-wallet"></i>
+                </div>
+            </div>
+            
+            <div class="step-connector"></div>
+            
+            <div class="step reveal">
+                <div class="step-number">03</div>
+                <div class="step-content">
+                    <h3>Get Insights</h3>
+                    <p>Receive AI-powered advice to improve your finances.</p>
+                </div>
+                <div class="step-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section">
+    <div class="container">
+        <div class="cta-content reveal">
+            <h2>Ready to Take Control of Your Finances?</h2>
+            <p>Join users who have transformed their financial lives with Budget Master.</p>
+            <a href="{{ url_for('register') }}" class="btn btn-white btn-lg">
+                <i class="fas fa-rocket"></i> Get Started 
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Landing Footer -->
+<footer class="landing-footer">
+    <div class="container">
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <div class="brand-logo">
+                    <i class="fas fa-wallet"></i>
+                    <span>Budget Master</span>
+                </div>
+                <p>Your trusted partner in personal finance management. Track, plan, and achieve your financial goals.</p>
+                <div class="social-links">
+                    <a href="#"><i class="fab fa-twitter"></i></a>
+                    <a href="#"><i class="fab fa-facebook"></i></a>
+                    <a href="#"><i class="fab fa-linkedin"></i></a>
+                    <a href="#"><i class="fab fa-instagram"></i></a>
+                </div>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Product</h4>
+                <a href="#features">Features</a>
+                <a href="#">Pricing</a>
+                <a href="#">Security</a>
+                <a href="#">Updates</a>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Company</h4>
+                <a href="{{ url_for('about') }}">About Us</a>
+                <a href="#">Careers</a>
+                <a href="#">Press</a>
+                <a href="#">Contact</a>
+            </div>
+            
+            <div class="footer-links">
+                <h4>Support</h4>
+                <a href="#">Help Center</a>
+                <a href="#">Documentation</a>
+                <a href="#">API</a>
+                <a href="#">Status</a>
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            <p>&copy; 2026 Budget Master. All rights reserved.</p>
+            <div class="footer-legal">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">Cookies</a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 首页预览图表
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('previewChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Food', 'Transport', 'Shopping', 'Bills', 'Entertainment'],
+                datasets: [{
+                    data: [30, 20, 25, 15, 10],
+                    backgroundColor: [
+                        '#6366f1',
+                        '#10b981',
+                        '#f59e0b',
+                        '#ec4899',
+                        '#8b5cf6'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                cutout: '70%'
+            }
+        });
+    }
+    
+    // 数字动画
+    const counters = document.querySelectorAll('[data-count]');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const target = entry.target;
+                const count = parseInt(target.getAttribute('data-count'));
+                let current = 0;
+                const increment = count / 50;
+                const timer = setInterval(() => {
+                    current += increment;
+                    if (current >= count) {
+                        target.textContent = count.toLocaleString();
+                        clearInterval(timer);
+                    } else {
+                        target.textContent = Math.floor(current).toLocaleString();
+                    }
+                }, 30);
+                observer.unobserve(target);
+            }
+        });
+    });
+    
+    counters.forEach(counter => observer.observe(counter));
+});
+</script>
+{% endblock %}

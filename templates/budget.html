@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block title %}Budget - Budget Master{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <div class="page-header reveal">
+        <div class="page-title">
+            <h1><i class="fas fa-piggy-bank"></i> Budget Management</h1>
+            <p>Set spending limits and track your progress</p>
+        </div>
+    </div>
+    
+    <div class="page-grid budget-layout">
+        <!-- Set Budget Form -->
+        <div class="form-section reveal">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-sliders-h"></i> Set Budget Limit</h2>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('budget') }}" class="budget-form">
+                        <div class="form-group">
+                            <label for="category">Category</label>
+                            <select id="category" name="category" required>
+                                <option value="">Select category...</option>
+                                <option value="Necessities">🏠 Necessities</option>
+                                <option value="Food">🍔 Food & Dining</option>
+                                <option value="Transport">🚗 Transport</option>
+                                <option value="Entertainment">🎮 Entertainment</option>
+                                <option value="Shopping">🛍️ Shopping</option>
+                                <option value="Health">💊 Health</option>
+                                <option value="Education">📚 Education</option>
+                                <option value="Bills">📄 Bills & Utilities</option>
+                                <option value="Savings">💎 Savings Goal</option>
+                                <option value="Others">📦 Others</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="limit">Monthly Limit (RM)</label>
+                            <input type="number" id="limit" name="limit" required 
+                                   min="1" step="1" placeholder="e.g., 500">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-save"></i> Save Budget
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Budget Tips -->
+            <div class="card tips-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-lightbulb"></i> Budgeting Tips</h2>
+                </div>
+                <div class="card-body">
+                    <div class="tip">
+                        <span class="tip-icon">💡</span>
+                        <p><strong>50/30/20 Rule:</strong> Allocate 50% to needs, 30% to wants, and 20% to savings.</p>
+                    </div>
+                    <div class="tip">
+                        <span class="tip-icon">🎯</span>
+                        <p><strong>Start Small:</strong> If you're new to budgeting, start with tracking just 3 categories.</p>
+                    </div>
+                    <div class="tip">
+                        <span class="tip-icon">📊</span>
+                        <p><strong>Review Monthly:</strong> Adjust your budgets based on actual spending patterns.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Budget Overview -->
+        <div class="list-section reveal">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-chart-bar"></i> Budget Overview</h2>
+                </div>
+                <div class="card-body">
+                    {% if budgets %}
+                    <div class="budget-cards">
+                        {% for category, data in budgets.items() %}
+                        {% set percentage = (data.spent / data.limit * 100) if data.limit > 0 else 0 %}
+                        {% set status = 'danger' if percentage > 100 else ('warning' if percentage > 80 else 'success') %}
+                        <div class="budget-card {{ status }}">
+                            <div class="budget-card-header">
+                                <h3>{{ category }}</h3>
+                                <span class="budget-status {{ status }}">
+                                    {% if percentage > 100 %}
+                                    <i class="fas fa-exclamation-triangle"></i> Over Budget
+                                    {% elif percentage > 80 %}
+                                    <i class="fas fa-exclamation-circle"></i> Warning
+                                    {% else %}
+                                    <i class="fas fa-check-circle"></i> On Track
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="budget-card-body">
+                                <div class="budget-amounts">
+                                    <div class="spent">
+                                        <span class="label">Spent</span>
+                                        <span class="value">RM{{ "%.2f"|format(data.spent) }}</span>
+                                    </div>
+                                    <div class="remaining">
+                                        <span class="label">Remaining</span>
+                                        <span class="value {% if data.limit - data.spent < 0 %}negative{% endif %}">
+                                            RM{{ "%.2f"|format(data.limit - data.spent) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="budget-progress-container">
+                                    <div class="budget-progress-bar">
+                                        <div class="progress-fill {{ status }}" style="width: {{ [percentage, 100]|min }}%"></div>
+                                    </div>
+                                    <span class="progress-text">{{ "%.0f"|format(percentage) }}% of RM{{ "%.0f"|format(data.limit) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-piggy-bank"></i>
+                        <h3>No Budgets Set</h3>
+                        <p>Create your first budget to start tracking your spending limits.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
