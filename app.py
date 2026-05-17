@@ -19,6 +19,12 @@ app.config['MAIL_PASSWORD'] = 'pxpofoimgsysvrox'
 app.config['MAIL_DEFAULT_SENDER'] = 'wongjt2006@gmail.com'
 
 mail = Mail(app)
+print("=== MAIL CONFIG ===")
+print("SERVER:", app.config['MAIL_SERVER'])
+print("PORT:", app.config['MAIL_PORT'])
+print("USERNAME:", app.config['MAIL_USERNAME'])
+print("PASSWORD:", app.config['MAIL_PASSWORD'])
+print("===================")
 # ============== 模拟数据库 ==============
 users_db = {}
 expenses_db = {}
