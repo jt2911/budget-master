@@ -119,9 +119,12 @@ def login():
     
     return render_template('login.html')
 # ============== 忘记密码 ==============
+# ============== 忘记密码 ==============
 @app.route('/forgot', methods=['GET', 'POST'])
 def forgot():
+    print("=== FORGOT ROUTE HIT ===", request.method)
     if request.method == 'POST':
+        print("=== EMAIL SUBMITTED:", request.form.get('email'))
         email = request.form.get('email')
 
         if email:
@@ -131,10 +134,8 @@ def forgot():
                 'expires': datetime.now() + timedelta(hours=1)
             }
 
-            # Build the reset link
             reset_link = url_for('reset_password', token=token, _external=True)
 
-            # Send the actual email
             try:
                 msg = Message(
                     subject='Budget Master - Password Reset',
@@ -152,32 +153,12 @@ If you did not request this, please ignore this email.
                 mail.send(msg)
                 flash(f'Password reset link sent to {email}! Check your inbox.', 'success')
             except Exception as e:
-                flash('Failed to send email. Please try again later.', 'error')
-                print(f"Mail error: {e}")  # check your terminal for details
-
+                import traceback
+                traceback.print_exc()
+                flash(f'Email error: {str(e)}', 'error')
+                print(f"Mail error: {e}")
 
     return render_template('forgot.html')
-# ============== 重置密码 ==============
-@app.route('/reset/<token>', methods=['GET', 'POST'])
-def reset_password(token):
-    token_data = reset_tokens.get(token)
-
-    # Check token exists AND hasn't expired
-    if not token_data or datetime.now() > token_data['expires']:
-        flash('Invalid or expired reset link!', 'error')
-        if token in reset_tokens:
-            del reset_tokens[token]  # clean up expired token
-        return redirect(url_for('forgot'))
-    
-    if request.method == 'POST':
-        password = request.form.get('password')
-        email = reset_tokens[token]['email']
-        users_db[email]['password'] = generate_password_hash(password)
-        del reset_tokens[token]
-        flash('Password reset successful! Please login.', 'success')
-        return redirect(url_for('login'))
-    
-    return render_template('reset.html', token=token)
 # ============== 登出 ==============
 @app.route('/logout')
 def logout():
