@@ -8,6 +8,17 @@ import string
 app = Flask(__name__)
 app.jinja_env.globals['now'] = datetime.now
 app.secret_key = 'your-super-secret-key-change-this-in-production'
+
+from flask_mail import Mail, Message
+
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'your@gmail.com'
+app.config['MAIL_PASSWORD'] = 'your-app-password'  # Gmail App Password, not login password
+app.config['MAIL_DEFAULT_SENDER'] = 'your@gmail.com'
+
+mail = Mail(app)
 # ============== 模拟数据库 ==============
 users_db = {}
 expenses_db = {}
@@ -106,25 +117,52 @@ def login():
 def forgot():
     if request.method == 'POST':
         email = request.form.get('email')
-        
+
         if email in users_db:
-            # 生成重置令牌
             token = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
             reset_tokens[token] = {
                 'email': email,
                 'expires': datetime.now() + timedelta(hours=1)
             }
-            # 在真实应用中，这里会发送邮件
-            flash(f'Password reset link sent to {email}! (Demo: token={token[:8]}...)', 'success')
+
+            # Build the reset link
+            reset_link = url_for('reset_password', token=token, _external=True)
+
+            # Send the actual email
+            try:
+                msg = Message(
+                    subject='Budget Master - Password Reset',
+                    recipients=[email]
+                )
+                msg.body = f"""Hi,
+
+You requested a password reset for your Budget Master account.
+
+Click the link below to reset your password (valid for 1 hour):
+{reset_link}
+
+If you did not request this, please ignore this email.
+"""
+                mail.send(msg)
+                flash(f'Password reset link sent to {email}! Check your inbox.', 'success')
+            except Exception as e:
+                flash('Failed to send email. Please try again later.', 'error')
+                print(f"Mail error: {e}")  # check your terminal for details
         else:
-            flash('Email not found!', 'error')
-    
+            # Don't reveal whether email exists (security best practice)
+            flash('If that email is registered, a reset link has been sent.', 'success')
+
     return render_template('forgot.html')
 # ============== 重置密码 ==============
 @app.route('/reset/<token>', methods=['GET', 'POST'])
 def reset_password(token):
-    if token not in reset_tokens:
+    token_data = reset_tokens.get(token)
+
+    # Check token exists AND hasn't expired
+    if not token_data or datetime.now() > token_data['expires']:
         flash('Invalid or expired reset link!', 'error')
+        if token in reset_tokens:
+            del reset_tokens[token]  # clean up expired token
         return redirect(url_for('forgot'))
     
     if request.method == 'POST':
