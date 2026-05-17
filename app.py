@@ -15,7 +15,7 @@ app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = 'wongjt2006@gmail.com'
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['MAIL_PASSWORD'] = 'pxpo foim gsys vrox'
 app.config['MAIL_DEFAULT_SENDER'] = 'wongjt2006@gmail.com'
 
 mail = Mail(app)
@@ -118,7 +118,7 @@ def forgot():
     if request.method == 'POST':
         email = request.form.get('email')
 
-        if email in users_db:
+        if email:
             token = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
             reset_tokens[token] = {
                 'email': email,
@@ -148,9 +148,7 @@ If you did not request this, please ignore this email.
             except Exception as e:
                 flash('Failed to send email. Please try again later.', 'error')
                 print(f"Mail error: {e}")  # check your terminal for details
-        else:
-            # Don't reveal whether email exists (security best practice)
-            flash('If that email is registered, a reset link has been sent.', 'success')
+
 
     return render_template('forgot.html')
 # ============== 重置密码 ==============
