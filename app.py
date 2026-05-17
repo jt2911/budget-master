@@ -568,4 +568,4 @@ def chart_data():
     })
 # ============== 运行应用 ==============
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)
