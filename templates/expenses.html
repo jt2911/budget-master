@@ -6,65 +6,63 @@
 <div class="page-container">
     <div class="page-header reveal">
         <div class="page-title">
-            <h1><i class="fas fa-receipt"></i> Expense Tracking</h1>
-            <p>Record and manage all your transactions</p>
+            <h1><i class="fas fa-wallet"></i> Expense Tracking</h1>
+            <p>Track your income and expenses easily</p>
         </div>
     </div>
-    
+
     <div class="page-grid">
-        <!-- Add Transaction Form -->
+        <!-- Add Transaction -->
         <div class="form-section reveal">
-            <div class="card">
+            <div class="card glass-card">
                 <div class="card-header">
                     <h2><i class="fas fa-plus-circle"></i> Add Transaction</h2>
                 </div>
+
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('expenses') }}" class="transaction-form">
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="date">Date</label>
-                                <input type="date" id="date" name="date" required 
-                                       value="{{ now().strftime('%Y-%m-%d') if now is defined else '' }}">
+                                <label>Date</label>
+                                <input type="date" name="date" id="date" required>
                             </div>
+
                             <div class="form-group">
-                                <label for="type">Type</label>
-                                <select id="type" name="type" required>
+                                <label>Type</label>
+                                <select name="type" required>
                                     <option value="expense">💸 Expense</option>
                                     <option value="income">💰 Income</option>
                                 </select>
                             </div>
                         </div>
-                        
+
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="category">Category</label>
-                                <select id="category" name="category" required>
-                                    <option value="">Select category...</option>
-                                    <option value="Necessities">🏠 Necessities</option>
-                                    <option value="Food">🍔 Food & Dining</option>
+                                <label>Category</label>
+                                <select name="category" required>
+                                    <option value="Food & Dining">🍔 Food & Dining</option>
                                     <option value="Transport">🚗 Transport</option>
+                                    <option value="Shopping">🛍 Shopping</option>
                                     <option value="Entertainment">🎮 Entertainment</option>
-                                    <option value="Shopping">🛍️ Shopping</option>
-                                    <option value="Health">💊 Health</option>
                                     <option value="Education">📚 Education</option>
-                                    <option value="Bills">📄 Bills & Utilities</option>
+                                    <option value="Health">💊 Health</option>
+                                    <option value="Bills">📄 Bills</option>
                                     <option value="Savings">💎 Savings</option>
                                     <option value="Others">📦 Others</option>
                                 </select>
                             </div>
+
                             <div class="form-group">
-                                <label for="amount">Amount (RM)</label>
-                                <input type="number" id="amount" name="amount" required 
-                                       min="0.01" step="0.01" placeholder="0.00">
+                                <label>Amount (RM)</label>
+                                <input type="number" step="0.01" min="0.01" name="amount" placeholder="0.00" required>
                             </div>
                         </div>
-                        
+
                         <div class="form-group">
-                            <label for="note">Note (Optional)</label>
-                            <input type="text" id="note" name="note" 
-                                   placeholder="e.g., Lunch with colleagues">
+                            <label>Note</label>
+                            <input type="text" name="note" placeholder="Enter note...">
                         </div>
-                        
+
                         <button type="submit" class="btn btn-primary btn-block">
                             <i class="fas fa-save"></i> Save Transaction
                         </button>
@@ -72,50 +70,63 @@
                 </div>
             </div>
         </div>
-        
-        <!-- Transactions List -->
+
+        <!-- Transaction List -->
         <div class="list-section reveal">
-            <div class="card">
+            <div class="card glass-card">
                 <div class="card-header">
-                    <h2><i class="fas fa-list"></i> All Transactions</h2>
-                    <div class="filter-group">
-                        <input type="text" id="searchTransactions" placeholder="Search..." class="search-input">
-                    </div>
+                    <h2><i class="fas fa-list"></i> Transactions</h2>
+
+                    <input type="text" id="searchTransactions" class="search-input" placeholder="Search transactions...">
                 </div>
+
                 <div class="card-body">
+                    {% if expenses %}
                     <div class="transactions-table-wrapper">
-                        {% if expenses %}
                         <table class="transactions-table">
                             <thead>
                                 <tr>
                                     <th>Date</th>
                                     <th>Category</th>
-                                    <th>Note</th>
                                     <th>Type</th>
                                     <th>Amount</th>
+                                    <th>Note</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
+
                             <tbody id="transactionsBody">
-                                {% for expense in expenses|reverse %}
-                                <tr class="transaction-row {{ expense.type }}">
+                                {% for expense in expenses %}
+                                <tr>
                                     <td>{{ expense.date }}</td>
+
                                     <td>
-                                        <span class="category-badge">{{ expense.category }}</span>
-                                    </td>
-                                    <td class="note-cell">{{ expense.note or '-' }}</td>
-                                    <td>
-                                        <span class="type-badge {{ expense.type }}">
-                                            {{ expense.type|capitalize }}
+                                        <span class="category-badge">
+                                            {{ expense.category }}
                                         </span>
                                     </td>
-                                    <td class="amount-cell {{ expense.type }}">
-                                        {% if expense.type == 'income' %}+{% else %}-{% endif %}RM{{ "%.2f"|format(expense.amount) }}
-                                    </td>
+
                                     <td>
-                                        <!-- Edit Button -->
-                                        <button type="button" class="btn-icon edit"
-                                            title="Edit"
+                                        {% if expense.type == 'income' %}
+                                        <span class="type-badge income">Income</span>
+                                        {% else %}
+                                        <span class="type-badge expense">Expense</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <td class="amount-cell {{ expense.type }}">
+                                        {% if expense.type == 'income' %}
+                                            +RM{{ '%.2f'|format(expense.amount) }}
+                                        {% else %}
+                                            -RM{{ '%.2f'|format(expense.amount) }}
+                                        {% endif %}
+                                    </td>
+
+                                    <td>{{ expense.note or '-' }}</td>
+
+                                    <td>
+                                        <button type="button"
+                                            class="btn-icon edit"
                                             onclick="openEditModal(
                                                 '{{ expense.id }}',
                                                 '{{ expense.date }}',
@@ -123,13 +134,16 @@
                                                 '{{ expense.category }}',
                                                 '{{ expense.amount }}',
                                                 '{{ expense.note or '' }}'
-                                            )">Edit
-                                            <i class="fas fa-pencil-alt"></i>
+                                            )">
+                                            <i class="fas fa-edit"></i>
                                         </button>
-                                        <!-- Delete Button -->
-                                        <form method="POST" action="{{ url_for('delete_expense', expense_id=expense.id) }}" 
-                                              style="display: inline;" onsubmit="return confirm('Delete this transaction?')">
-                                            <button type="submit" class="btn-icon danger" title="Delete">Delete
+
+                                        <form method="POST"
+                                            action="{{ url_for('delete_expense', expense_id=expense.id) }}"
+                                            style="display:inline;"
+                                            onsubmit="return confirm('Delete this transaction?')">
+
+                                            <button type="submit" class="btn-icon danger">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </form>
@@ -138,74 +152,71 @@
                                 {% endfor %}
                             </tbody>
                         </table>
-                        {% else %}
-                        <div class="empty-state">
-                            <i class="fas fa-receipt"></i>
-                            <h3>No Transactions Yet</h3>
-                            <p>Start tracking your finances by adding your first transaction above.</p>
-                        </div>
-                        {% endif %}
                     </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-receipt"></i>
+                        <h3>No Transactions Yet</h3>
+                        <p>Add your first transaction now.</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- ── Edit Modal ── -->
-<div id="editModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45);
-     z-index:1000; align-items:center; justify-content:center;">
-    <div style="background:#8c55fb; border-radius:12px; padding:1.5rem; width:100%; max-width:500px; margin:1rem;">
-        <h3 style="margin:0 0 1.25rem; font-size:1.1rem;">
-            <i class="fas fa-pencil-alt"></i> Edit Transaction
-        </h3>
-        <form method="POST" id="editForm" action="">
+<!-- Edit Modal -->
+<div id="editModal" class="modal-overlay">
+    <div class="modal-box">
+        <h2>Edit Transaction</h2>
+
+        <form method="POST" id="editForm">
             <div class="form-row">
                 <div class="form-group">
-                    <label for="edit_date">Date</label>
-                    <input type="date" id="edit_date" name="date" required>
+                    <label>Date</label>
+                    <input type="date" name="date" id="edit_date" required>
                 </div>
+
                 <div class="form-group">
-                    <label for="edit_type">Type</label>
-                    <select id="edit_type" name="type" required>
-                        <option value="expense">💸 Expense</option>
-                        <option value="income">💰 Income</option>
+                    <label>Type</label>
+                    <select name="type" id="edit_type" required>
+                        <option value="expense">Expense</option>
+                        <option value="income">Income</option>
                     </select>
                 </div>
             </div>
+
             <div class="form-row">
                 <div class="form-group">
-                    <label for="edit_category">Category</label>
-                    <select id="edit_category" name="category" required>
-                        <option value="Necessities">🏠 Necessities</option>
-                        <option value="Food">🍔 Food & Dining</option>
-                        <option value="Transport">🚗 Transport</option>
-                        <option value="Entertainment">🎮 Entertainment</option>
-                        <option value="Shopping">🛍️ Shopping</option>
-                        <option value="Health">💊 Health</option>
-                        <option value="Education">📚 Education</option>
-                        <option value="Bills">📄 Bills & Utilities</option>
-                        <option value="Savings">💎 Savings</option>
-                        <option value="Others">📦 Others</option>
+                    <label>Category</label>
+                    <select name="category" id="edit_category" required>
+                        <option value="Food & Dining">Food & Dining</option>
+                        <option value="Transport">Transport</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Education">Education</option>
+                        <option value="Health">Health</option>
+                        <option value="Bills">Bills</option>
+                        <option value="Savings">Savings</option>
+                        <option value="Others">Others</option>
                     </select>
                 </div>
+
                 <div class="form-group">
-                    <label for="edit_amount">Amount (RM)</label>
-                    <input type="number" id="edit_amount" name="amount" required 
-                           min="0.01" step="0.01" placeholder="0.00">
+                    <label>Amount</label>
+                    <input type="number" step="0.01" name="amount" id="edit_amount" required>
                 </div>
             </div>
+
             <div class="form-group">
-                <label for="edit_note">Note (Optional)</label>
-                <input type="text" id="edit_note" name="note" placeholder="e.g., Lunch with colleagues">
+                <label>Note</label>
+                <input type="text" name="note" id="edit_note">
             </div>
-            <div style="display:flex; gap:0.75rem; margin-top:1.25rem; justify-content:flex-end;">
-                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">
-                    Cancel
-                </button>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Save Changes
-                </button>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
             </div>
         </form>
     </div>
@@ -214,19 +225,24 @@
 
 {% block scripts %}
 <script>
-// Search functionality
-document.getElementById('searchTransactions')?.addEventListener('input', function(e) {
-    const search = e.target.value.toLowerCase();
-    document.querySelectorAll('#transactionsBody tr').forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(search) ? '' : 'none';
-    });
-});
-
-// Set default date
 document.getElementById('date').valueAsDate = new Date();
 
-// ── Edit Modal ──
+// Search
+const searchInput = document.getElementById('searchTransactions');
+
+if (searchInput) {
+    searchInput.addEventListener('input', function(e) {
+        const value = e.target.value.toLowerCase();
+
+        document.querySelectorAll('#transactionsBody tr').forEach(row => {
+            row.style.display = row.textContent.toLowerCase().includes(value)
+                ? ''
+                : 'none';
+        });
+    });
+}
+
+// Edit Modal
 function openEditModal(id, date, type, category, amount, note) {
     document.getElementById('editForm').action = '/edit_expense/' + id;
     document.getElementById('edit_date').value = date;
@@ -235,17 +251,19 @@ function openEditModal(id, date, type, category, amount, note) {
     document.getElementById('edit_amount').value = amount;
     document.getElementById('edit_note').value = note;
 
-    const modal = document.getElementById('editModal');
-    modal.style.display = 'flex';
+    document.getElementById('editModal').style.display = 'flex';
 }
 
 function closeEditModal() {
     document.getElementById('editModal').style.display = 'none';
 }
 
-// Close modal when clicking the backdrop
-document.getElementById('editModal').addEventListener('click', function(e) {
-    if (e.target === this) closeEditModal();
-});
+window.onclick = function(event) {
+    const modal = document.getElementById('editModal');
+
+    if (event.target === modal) {
+        closeEditModal();
+    }
+}
 </script>
 {% endblock %}
