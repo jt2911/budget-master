@@ -310,7 +310,7 @@ def expenses():
         tx_type  = request.form.get('type', 'expense')
         note     = request.form.get('note', '')
 
-        cursor.execute("SELECT id FROM categories WHERE name=%s AND user_id IS NULL", (category,))
+        cursor.execute("SELECT id FROM categories WHERE LOWER(name)=LOWER(%s)", (category,))
         cat = cursor.fetchone()
         if not cat:
             cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (NULL, %s, 'expense')", (category,))
@@ -396,7 +396,7 @@ def budget():
         category = request.form.get('category')
         limit    = float(request.form.get('limit'))
 
-        cursor.execute("SELECT id FROM categories WHERE name=%s AND user_id IS NULL", (category,))
+        cursor.execute("SELECT id FROM categories WHERE LOWER(name)=LOWER(%s)", (category,))
         cat = cursor.fetchone()
         if not cat:
             cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (NULL, %s, 'expense')", (category,))
