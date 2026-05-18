@@ -197,8 +197,19 @@ def reset_password(token):
     cursor.execute("SELECT * FROM password_resets WHERE token = %s", (token,))
     record = cursor.fetchone()
 
-    if not record or record['expires_at'] < datetime.now():
+    if not record:
         flash('Invalid or expired reset link.', 'error')
+        cursor.close(); db.close()
+        return redirect(url_for('forgot'))
+
+    # Compare as strings to avoid timezone issues
+    expires_at = record['expires_at']
+    now = datetime.utcnow()
+    if isinstance(expires_at, str):
+        expires_at = datetime.strptime(expires_at, '%Y-%m-%d %H:%M:%S')
+    
+    if expires_at < now:
+        flash('Reset link has expired. Please request a new one.', 'error')
         cursor.close(); db.close()
         return redirect(url_for('forgot'))
 
