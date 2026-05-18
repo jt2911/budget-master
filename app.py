@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 import json
 import random
 import string
+import mysql.connector
+
 app = Flask(__name__)
 app.jinja_env.globals['now'] = datetime.now
 app.secret_key = 'your-super-secret-key-change-this-in-production'
@@ -17,21 +19,20 @@ app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = 'wongjt2006@gmail.com'
 app.config['MAIL_PASSWORD'] = 'pxpofoimgsysvrox'
 app.config['MAIL_DEFAULT_SENDER'] = 'wongjt2006@gmail.com'
-
 mail = Mail(app)
-print("=== MAIL CONFIG ===")
-print("SERVER:", app.config['MAIL_SERVER'])
-print("PORT:", app.config['MAIL_PORT'])
-print("USERNAME:", app.config['MAIL_USERNAME'])
-print("PASSWORD:", app.config['MAIL_PASSWORD'])
-print("===================")
-# ============== 模拟数据库 ==============
-users_db = {}
-expenses_db = {}
-budgets_db = {}
-loans_db = {}
-reset_tokens = {}
-# ============== 装饰器：登录验证 ==============
+
+# ============== DATABASE CONNECTION ==============
+def get_db():
+    conn = mysql.connector.connect(
+        host="127.0.0.1",
+        port=3306,
+        user="root",
+        password="",
+        database="budget_master"
+    )
+    return conn
+
+# ============== LOGIN DECORATOR ==============
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -40,15 +41,15 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
-# ============== 首页 ==============
+
+# ============== INDEX ==============
 @app.route('/')
 def index():
     return render_template('index.html')
-# ============== 关于页面 ==============
-# ============== 关于页面 ==============
+
 @app.route('/about')
 def about():
-    return render_template('about.html')   # ← make sure this line exists
+    return render_template('about.html')
 
 @app.route('/privacy')
 def privacy():
@@ -61,492 +62,624 @@ def terms():
 @app.route('/contact')
 def contact():
     return render_template('contact.html')
-# ============== 注册 ==============
+
+# ============== REGISTER ==============
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         username = request.form.get('username')
-        email = request.form.get('email')
+        email    = request.form.get('email')
         password = request.form.get('password')
-        confirm = request.form.get('confirm_password')
-        
+        confirm  = request.form.get('confirm_password')
+
         if password != confirm:
             flash('Passwords do not match!', 'error')
             return redirect(url_for('register'))
-        
-        if email in users_db:
+
+        db = get_db()
+        cursor = db.cursor(dictionary=True)
+
+        cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+        if cursor.fetchone():
             flash('Email already registered!', 'error')
+            cursor.close(); db.close()
             return redirect(url_for('register'))
-        
-        users_db[email] = {
-            'username': username,
-            'email': email,
-            'password': generate_password_hash(password),
-            'created_at': datetime.now().isoformat()
-        }
-        
-        # 初始化用户数据
-        expenses_db[email] = []
-        budgets_db[email] = {
-            'Necessities': {'limit': 1000, 'spent': 0},
-            'Entertainment': {'limit': 300, 'spent': 0},
-            'Savings': {'limit': 500, 'spent': 0},
-            'Education': {'limit': 200, 'spent': 0},
-            'Health': {'limit': 150, 'spent': 0},
-            'Others': {'limit': 100, 'spent': 0}
-        }
-        loans_db[email] = []
-        
+
+        hashed = generate_password_hash(password)
+        cursor.execute(
+            "INSERT INTO users (name, email, password) VALUES (%s, %s, %s)",
+            (username, email, hashed)
+        )
+        user_id = cursor.lastrowid
+
+        # Default budgets for new user
+        default_budgets = [
+            ('Necessities', 1000), ('Entertainment', 300),
+            ('Savings', 500), ('Education', 200),
+            ('Health', 150), ('Others', 100)
+        ]
+        # Find or create category IDs and insert budgets
+        for cat_name, amount in default_budgets:
+            cursor.execute("SELECT id FROM categories WHERE name = %s AND (user_id IS NULL OR user_id = %s)", (cat_name, user_id))
+            cat = cursor.fetchone()
+            if not cat:
+                cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (%s, %s, 'expense')", (user_id, cat_name))
+                cat_id = cursor.lastrowid
+            else:
+                cat_id = cat['id']
+
+            cursor.execute(
+                "INSERT INTO budgets (user_id, category_id, name, amount, period) VALUES (%s, %s, %s, %s, 'monthly')",
+                (user_id, cat_id, cat_name, amount)
+            )
+
+        db.commit()
+        cursor.close(); db.close()
+
         flash('Registration successful! Please login.', 'success')
         return redirect(url_for('login'))
-    
+
     return render_template('register.html')
-# ============== 登录 ==============
+
+# ============== LOGIN ==============
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form.get('email')
+        email    = request.form.get('email')
         password = request.form.get('password')
-        
-        user = users_db.get(email)
+
+        db = get_db()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+        user = cursor.fetchone()
+        cursor.close(); db.close()
+
         if user and check_password_hash(user['password'], password):
-            session['user_id'] = email
-            session['username'] = user['username']
-            flash(f'Welcome back, {user["username"]}!', 'success')
+            session['user_id'] = user['id']
+            session['username'] = user['name']
+            flash(f'Welcome back, {user["name"]}!', 'success')
             return redirect(url_for('dashboard'))
-        
+
         flash('Invalid email or password!', 'error')
-    
+
     return render_template('login.html')
-# ============== 忘记密码 ==============
-# ============== 忘记密码 ==============
+
+# ============== FORGOT PASSWORD ==============
 @app.route('/forgot', methods=['GET', 'POST'])
 def forgot():
-    print("=== FORGOT ROUTE HIT ===", request.method)
     if request.method == 'POST':
-        print("=== EMAIL SUBMITTED:", request.form.get('email'))
         email = request.form.get('email')
-
         if email:
             token = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
-            reset_tokens[token] = {
-                'email': email,
-                'expires': datetime.now() + timedelta(hours=1)
-            }
+            expires = datetime.now() + timedelta(hours=1)
+
+            db = get_db()
+            cursor = db.cursor()
+            cursor.execute(
+                "INSERT INTO password_resets (email, token, expires_at) VALUES (%s, %s, %s)",
+                (email, token, expires)
+            )
+            db.commit()
+            cursor.close(); db.close()
 
             reset_link = url_for('reset_password', token=token, _external=True)
-
             try:
-                msg = Message(
-                    subject='Budget Master - Password Reset',
-                    recipients=[email]
-                )
-                msg.body = f"""Hi,
-
-You requested a password reset for your Budget Master account.
-
-Click the link below to reset your password (valid for 1 hour):
-{reset_link}
-
-If you did not request this, please ignore this email.
-"""
+                msg = Message(subject='Budget Master - Password Reset', recipients=[email])
+                msg.body = f"Click to reset your password (valid 1 hour):\n{reset_link}"
                 mail.send(msg)
-                flash(f'Password reset link sent to {email}! Check your inbox.', 'success')
+                flash(f'Password reset link sent to {email}!', 'success')
             except Exception as e:
-                import traceback
-                traceback.print_exc()
                 flash(f'Email error: {str(e)}', 'error')
-                print(f"Mail error: {e}")
 
     return render_template('forgot.html')
-# ============== 登出 ==============
+
+# ============== RESET PASSWORD ==============
+@app.route('/reset/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM password_resets WHERE token = %s", (token,))
+    record = cursor.fetchone()
+
+    if not record or record['expires_at'] < datetime.now():
+        flash('Invalid or expired reset link.', 'error')
+        cursor.close(); db.close()
+        return redirect(url_for('forgot'))
+
+    if request.method == 'POST':
+        new_password = request.form.get('password')
+        hashed = generate_password_hash(new_password)
+        cursor.execute("UPDATE users SET password = %s WHERE email = %s", (hashed, record['email']))
+        cursor.execute("DELETE FROM password_resets WHERE token = %s", (token,))
+        db.commit()
+        cursor.close(); db.close()
+        flash('Password reset successful! Please login.', 'success')
+        return redirect(url_for('login'))
+
+    cursor.close(); db.close()
+    return render_template('reset.html', token=token)
+
+# ============== LOGOUT ==============
 @app.route('/logout')
 def logout():
     session.clear()
     flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
-# ============== Dashboard ==============
+
+# ============== DASHBOARD ==============
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    email = session['user_id']
-    expenses = expenses_db.get(email, [])
-    budgets = budgets_db.get(email, {})
-    loans = loans_db.get(email, [])
-    
-    # 计算统计数据
-    total_expenses = sum(e['amount'] for e in expenses)
-    total_income = sum(e['amount'] for e in expenses if e['type'] == 'income')
-    total_spent = sum(e['amount'] for e in expenses if e['type'] == 'expense')
-    total_loan = sum(l['remaining'] for l in loans)
-    
-    # 本月数据
+    user_id = session['user_id']
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+
+    # Total income
+    cursor.execute("SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=%s AND type='income'", (user_id,))
+    total_income = cursor.fetchone()['total']
+
+    # Total spent
+    cursor.execute("SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=%s AND type='expense'", (user_id,))
+    total_spent = cursor.fetchone()['total']
+
+    # Total loan remaining
+    cursor.execute("SELECT COALESCE(SUM(remaining_balance),0) as total FROM loans WHERE user_id=%s AND status='active'", (user_id,))
+    total_loan = cursor.fetchone()['total']
+
+    # Monthly totals
     current_month = datetime.now().strftime('%Y-%m')
-    monthly_expenses = [e for e in expenses if e['date'].startswith(current_month)]
-    monthly_total = sum(e['amount'] for e in monthly_expenses if e['type'] == 'expense')
-    
-    # 分类统计
-    category_data = {}
-    for e in expenses:
-        if e['type'] == 'expense':
-            cat = e['category']
-            category_data[cat] = category_data.get(cat, 0) + e['amount']
-    
+    cursor.execute("""
+        SELECT COALESCE(SUM(amount),0) as total FROM transactions
+        WHERE user_id=%s AND type='expense' AND DATE_FORMAT(date,'%%Y-%%m')=%s
+    """, (user_id, current_month))
+    monthly_total = cursor.fetchone()['total']
+
+    # Recent 10 transactions
+    cursor.execute("""
+        SELECT t.*, c.name as category_name FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id=%s ORDER BY t.date DESC, t.created_at DESC LIMIT 10
+    """, (user_id,))
+    expenses = cursor.fetchall()
+
+    # Budgets with spent amounts
+    cursor.execute("""
+        SELECT b.*, c.name as category_name,
+               COALESCE((
+                   SELECT SUM(t.amount) FROM transactions t
+                   WHERE t.user_id=b.user_id AND t.category_id=b.category_id
+                   AND t.type='expense'
+                   AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
+               ),0) as spent
+        FROM budgets b
+        LEFT JOIN categories c ON b.category_id = c.id
+        WHERE b.user_id=%s
+    """, (current_month, user_id))
+    budgets_raw = cursor.fetchall()
+    budgets = {b['category_name']: {'limit': float(b['amount']), 'spent': float(b['spent'])} for b in budgets_raw}
+
+    # Loans
+    cursor.execute("SELECT * FROM loans WHERE user_id=%s AND status='active'", (user_id,))
+    loans = cursor.fetchall()
+
+    # Category breakdown
+    cursor.execute("""
+        SELECT c.name as category, SUM(t.amount) as total
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id=%s AND t.type='expense'
+        GROUP BY c.name
+    """, (user_id,))
+    category_data = {row['category']: float(row['total']) for row in cursor.fetchall()}
+
+    cursor.close(); db.close()
+
     return render_template('dashboard.html',
-        total_expenses=total_expenses,
         total_income=total_income,
         total_spent=total_spent,
         total_loan=total_loan,
         monthly_total=monthly_total,
         budgets=budgets,
-        expenses=expenses[-10:],  # 最近10条
+        expenses=expenses,
         loans=loans,
         category_data=category_data
     )
-# ============== 支出管理 ==============
+
+# ============== EXPENSES / TRANSACTIONS ==============
 @app.route('/expenses', methods=['GET', 'POST'])
 @login_required
 def expenses():
-    email = session['user_id']
-    
+    user_id = session['user_id']
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+
     if request.method == 'POST':
-        expense = {
-            'id': len(expenses_db.get(email, [])) + 1,
-            'date': request.form.get('date'),
-            'category': request.form.get('category'),
-            'amount': float(request.form.get('amount')),
-            'type': request.form.get('type', 'expense'),
-            'note': request.form.get('note', ''),
-            'created_at': datetime.now().isoformat()
-        }
-        
-        if email not in expenses_db:
-            expenses_db[email] = []
-        expenses_db[email].append(expense)
-        
-        # 更新预算已用金额
-        if expense['type'] == 'expense':
-            cat = expense['category']
-            if cat in budgets_db.get(email, {}):
-                budgets_db[email][cat]['spent'] += expense['amount']
-        
+        date     = request.form.get('date')
+        category = request.form.get('category')
+        amount   = float(request.form.get('amount'))
+        tx_type  = request.form.get('type', 'expense')
+        note     = request.form.get('note', '')
+
+        # Get or create category
+        cursor.execute("SELECT id FROM categories WHERE name=%s AND (user_id IS NULL OR user_id=%s)", (category, user_id))
+        cat = cursor.fetchone()
+        if not cat:
+            cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (%s, %s, %s)", (user_id, category, tx_type))
+            cat_id = cursor.lastrowid
+        else:
+            cat_id = cat['id']
+
+        cursor.execute(
+            "INSERT INTO transactions (user_id, category_id, type, amount, description, date) VALUES (%s,%s,%s,%s,%s,%s)",
+            (user_id, cat_id, tx_type, amount, note, date)
+        )
+        db.commit()
         flash('Transaction added successfully!', 'success')
+        cursor.close(); db.close()
         return redirect(url_for('expenses'))
-    
-    user_expenses = expenses_db.get(email, [])
+
+    cursor.execute("""
+        SELECT t.*, c.name as category FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id=%s ORDER BY t.date DESC, t.created_at DESC
+    """, (user_id,))
+    user_expenses = cursor.fetchall()
+    cursor.close(); db.close()
+
     return render_template('expenses.html', expenses=user_expenses)
-# ============== 删除支出 ==============
+
+# ============== DELETE EXPENSE ==============
 @app.route('/expenses/delete/<int:expense_id>', methods=['POST'])
 @login_required
 def delete_expense(expense_id):
-    email = session['user_id']
-    expenses = expenses_db.get(email, [])
-    
-    for i, e in enumerate(expenses):
-        if e['id'] == expense_id:
-            # 恢复预算
-            if e['type'] == 'expense' and e['category'] in budgets_db.get(email, {}):
-                budgets_db[email][e['category']]['spent'] -= e['amount']
-            expenses.pop(i)
-            flash('Transaction deleted!', 'success')
-            break
-    
+    user_id = session['user_id']
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM transactions WHERE id=%s AND user_id=%s", (expense_id, user_id))
+    db.commit()
+    cursor.close(); db.close()
+    flash('Transaction deleted!', 'success')
     return redirect(url_for('expenses'))
-# ============== 预算管理 ==============
+
+# ============== BUDGET ==============
 @app.route('/budget', methods=['GET', 'POST'])
 @login_required
 def budget():
-    email = session['user_id']
-    
+    user_id = session['user_id']
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    current_month = datetime.now().strftime('%Y-%m')
+
     if request.method == 'POST':
         category = request.form.get('category')
-        limit = float(request.form.get('limit'))
-        
-        if email not in budgets_db:
-            budgets_db[email] = {}
-        
-        if category in budgets_db[email]:
-            budgets_db[email][category]['limit'] = limit
+        limit    = float(request.form.get('limit'))
+
+        # Get or create category
+        cursor.execute("SELECT id FROM categories WHERE name=%s AND (user_id IS NULL OR user_id=%s)", (category, user_id))
+        cat = cursor.fetchone()
+        if not cat:
+            cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (%s, %s, 'expense')", (user_id, category))
+            cat_id = cursor.lastrowid
         else:
-            budgets_db[email][category] = {'limit': limit, 'spent': 0}
-        
+            cat_id = cat['id']
+
+        # Update or insert budget
+        cursor.execute("SELECT id FROM budgets WHERE user_id=%s AND category_id=%s", (user_id, cat_id))
+        existing = cursor.fetchone()
+        if existing:
+            cursor.execute("UPDATE budgets SET amount=%s WHERE id=%s", (limit, existing['id']))
+        else:
+            cursor.execute(
+                "INSERT INTO budgets (user_id, category_id, name, amount, period) VALUES (%s,%s,%s,%s,'monthly')",
+                (user_id, cat_id, category, limit)
+            )
+        db.commit()
         flash(f'Budget for {category} updated!', 'success')
+        cursor.close(); db.close()
         return redirect(url_for('budget'))
-    
-    budgets = budgets_db.get(email, {})
+
+    cursor.execute("""
+        SELECT b.*, c.name as category_name,
+               COALESCE((
+                   SELECT SUM(t.amount) FROM transactions t
+                   WHERE t.user_id=b.user_id AND t.category_id=b.category_id
+                   AND t.type='expense' AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
+               ),0) as spent
+        FROM budgets b
+        LEFT JOIN categories c ON b.category_id = c.id
+        WHERE b.user_id=%s
+    """, (current_month, user_id))
+    budgets_raw = cursor.fetchall()
+    budgets = {b['category_name']: {'limit': float(b['amount']), 'spent': float(b['spent'])} for b in budgets_raw}
+
+    cursor.close(); db.close()
     return render_template('budget.html', budgets=budgets)
-# ============== 贷款管理 ==============
+
+# ============== LOANS ==============
 @app.route('/loans', methods=['GET', 'POST'])
 @login_required
 def loans():
-    email = session['user_id']
-    
+    user_id = session['user_id']
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+
     if request.method == 'POST':
         action = request.form.get('action')
-        
+
         if action == 'add':
-            loan = {
-                'id': len(loans_db.get(email, [])) + 1,
-                'name': request.form.get('name'),
-                'total': float(request.form.get('total')),
-                'remaining': float(request.form.get('total')),
-                'interest_rate': float(request.form.get('interest_rate', 0)),
-                'monthly_payment': float(request.form.get('monthly_payment')),
-                'start_date': request.form.get('start_date'),
-                'due_date': request.form.get('due_date', ''),
-                'created_at': datetime.now().isoformat()
-            }
-            
-            # 计算预计还清日期
-            if loan['monthly_payment'] > 0:
-                months = loan['remaining'] / loan['monthly_payment']
-                loan['estimated_payoff'] = (datetime.now() + timedelta(days=months*30)).strftime('%Y-%m-%d')
-            else:
-                loan['estimated_payoff'] = 'N/A'
-            
-            if email not in loans_db:
-                loans_db[email] = []
-            loans_db[email].append(loan)
+            name            = request.form.get('name')
+            total           = float(request.form.get('total'))
+            interest_rate   = float(request.form.get('interest_rate', 0))
+            monthly_payment = float(request.form.get('monthly_payment'))
+            start_date      = request.form.get('start_date')
+
+            months = total / monthly_payment if monthly_payment > 0 else 0
+            end_date = (datetime.now() + timedelta(days=months * 30)).strftime('%Y-%m-%d') if months else None
+
+            cursor.execute("""
+                INSERT INTO loans (user_id, name, type, principal, interest_rate, tenure_months,
+                                   monthly_payment, start_date, end_date, remaining_balance)
+                VALUES (%s,%s,'personal',%s,%s,%s,%s,%s,%s,%s)
+            """, (user_id, name, total, interest_rate, int(months), monthly_payment, start_date, end_date, total))
+            db.commit()
             flash('Loan added successfully!', 'success')
-        
+
         elif action == 'payment':
-            loan_id = int(request.form.get('loan_id'))
-            amount = float(request.form.get('payment_amount'))
-            
-            for loan in loans_db.get(email, []):
-                if loan['id'] == loan_id:
-                    loan['remaining'] = max(0, loan['remaining'] - amount)
-                    if loan['remaining'] == 0:
-                        flash(f'Congratulations! {loan["name"]} is paid off!', 'success')
-                    else:
-                        flash(f'Payment of ${amount} recorded!', 'success')
-                    break
-        
+            loan_id        = int(request.form.get('loan_id'))
+            payment_amount = float(request.form.get('payment_amount'))
+
+            cursor.execute("SELECT * FROM loans WHERE id=%s AND user_id=%s", (loan_id, user_id))
+            loan = cursor.fetchone()
+            if loan:
+                new_balance = max(0, float(loan['remaining_balance']) - payment_amount)
+                status = 'paid_off' if new_balance == 0 else 'active'
+                cursor.execute("UPDATE loans SET remaining_balance=%s, status=%s WHERE id=%s", (new_balance, status, loan_id))
+
+                cursor.execute(
+                    "INSERT INTO loan_payments (loan_id, user_id, amount, payment_date) VALUES (%s,%s,%s,%s)",
+                    (loan_id, user_id, payment_amount, datetime.now().strftime('%Y-%m-%d'))
+                )
+                db.commit()
+                if new_balance == 0:
+                    flash(f'Congratulations! {loan["name"]} is paid off!', 'success')
+                else:
+                    flash(f'Payment of RM{payment_amount:.2f} recorded!', 'success')
+
+        cursor.close(); db.close()
         return redirect(url_for('loans'))
-    
-    user_loans = loans_db.get(email, [])
+
+    cursor.execute("SELECT * FROM loans WHERE user_id=%s ORDER BY created_at DESC", (user_id,))
+    user_loans = cursor.fetchall()
+    # Add estimated_payoff for template compatibility
+    for loan in user_loans:
+        loan['total']     = float(loan['principal'])
+        loan['remaining'] = float(loan['remaining_balance'])
+        loan['estimated_payoff'] = str(loan['end_date']) if loan['end_date'] else 'N/A'
+
+    cursor.close(); db.close()
     return render_template('loans.html', loans=user_loans)
-# ============== 财务建议 ==============
+
+# ============== INSIGHTS ==============
 @app.route('/insights')
 @login_required
 def insights():
-    email = session['user_id']
-    expenses = expenses_db.get(email, [])
-    budgets = budgets_db.get(email, {})
-    loans = loans_db.get(email, [])
-    
+    user_id = session['user_id']
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    current_month = datetime.now().strftime('%Y-%m')
+
+    cursor.execute("SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=%s AND type='expense'", (user_id,))
+    total_spent = float(cursor.fetchone()['total'])
+
+    cursor.execute("SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=%s AND type='income'", (user_id,))
+    total_income = float(cursor.fetchone()['total'])
+
+    cursor.execute("""
+        SELECT c.name as category, SUM(t.amount) as total
+        FROM transactions t LEFT JOIN categories c ON t.category_id=c.id
+        WHERE t.user_id=%s AND t.type='expense' GROUP BY c.name
+    """, (user_id,))
+    category_totals = {row['category']: float(row['total']) for row in cursor.fetchall()}
+
+    cursor.execute("""
+        SELECT b.*, c.name as category_name,
+               COALESCE((SELECT SUM(t.amount) FROM transactions t
+                WHERE t.user_id=b.user_id AND t.category_id=b.category_id
+                AND t.type='expense' AND DATE_FORMAT(t.date,'%%Y-%%m')=%s),0) as spent
+        FROM budgets b LEFT JOIN categories c ON b.category_id=c.id
+        WHERE b.user_id=%s
+    """, (current_month, user_id))
+    budgets = cursor.fetchall()
+
+    cursor.execute("SELECT * FROM loans WHERE user_id=%s AND status='active'", (user_id,))
+    loans = cursor.fetchall()
+
+    cursor.close(); db.close()
+
     suggestions = []
-    
-    # 分析消费模式
-    total_spent = sum(e['amount'] for e in expenses if e['type'] == 'expense')
-    total_income = sum(e['amount'] for e in expenses if e['type'] == 'income')
-    
-    # 检查预算超支
-    for cat, data in budgets.items():
-        if data['spent'] > data['limit']:
-            percentage = ((data['spent'] - data['limit']) / data['limit']) * 100
-            suggestions.append({
-                'type': 'warning',
-                'icon': '⚠️',
-                'title': f'{cat} Budget Exceeded',
-                'message': f'You\'ve exceeded your {cat} budget by {percentage:.1f}%. Consider reducing spending in this category.',
-                'action': f'Reduce {cat.lower()} expenses by ${data["spent"] - data["limit"]:.2f}'
-            })
-        elif data['spent'] > data['limit'] * 0.8:
-            suggestions.append({
-                'type': 'caution',
-                'icon': '📊',
-                'title': f'{cat} Budget Alert',
-                'message': f'You\'ve used {(data["spent"]/data["limit"]*100):.1f}% of your {cat} budget.',
-                'action': 'Monitor spending closely'
-            })
-    
-    # 储蓄建议
+
+    for b in budgets:
+        spent = float(b['spent'])
+        limit = float(b['amount'])
+        cat   = b['category_name']
+        if spent > limit:
+            pct = ((spent - limit) / limit) * 100
+            suggestions.append({'type':'warning','icon':'⚠️','title':f'{cat} Budget Exceeded',
+                'message':f'You\'ve exceeded your {cat} budget by {pct:.1f}%.',
+                'action':f'Reduce {cat.lower()} expenses by RM{spent - limit:.2f}'})
+        elif limit and spent > limit * 0.8:
+            suggestions.append({'type':'caution','icon':'📊','title':f'{cat} Budget Alert',
+                'message':f'You\'ve used {(spent/limit*100):.1f}% of your {cat} budget.',
+                'action':'Monitor spending closely'})
+
     if total_income > 0:
         savings_rate = ((total_income - total_spent) / total_income) * 100
         if savings_rate < 20:
-            suggestions.append({
-                'type': 'tip',
-                'icon': '💡',
-                'title': 'Improve Savings Rate',
-                'message': f'Your current savings rate is {savings_rate:.1f}%. Financial experts recommend saving at least 20% of income.',
-                'action': 'Try the 50/30/20 rule: 50% needs, 30% wants, 20% savings'
-            })
+            suggestions.append({'type':'tip','icon':'💡','title':'Improve Savings Rate',
+                'message':f'Your savings rate is {savings_rate:.1f}%. Aim for at least 20%.',
+                'action':'Try the 50/30/20 rule'})
         else:
-            suggestions.append({
-                'type': 'success',
-                'icon': '🎉',
-                'title': 'Great Savings Habit!',
-                'message': f'Your savings rate of {savings_rate:.1f}% exceeds the recommended 20%!',
-                'action': 'Consider investing surplus savings'
-            })
-    
-    # 贷款建议
+            suggestions.append({'type':'success','icon':'🎉','title':'Great Savings Habit!',
+                'message':f'Your savings rate of {savings_rate:.1f}% exceeds 20%!',
+                'action':'Consider investing surplus savings'})
+
     if loans:
-        total_loan = sum(l['remaining'] for l in loans)
-        high_interest = [l for l in loans if l['interest_rate'] > 10]
+        high_interest = [l for l in loans if float(l['interest_rate']) > 10]
         if high_interest:
-            suggestions.append({
-                'type': 'warning',
-                'icon': '🏦',
-                'title': 'High Interest Loans Detected',
-                'message': f'You have {len(high_interest)} loan(s) with interest rates above 10%. Prioritize paying these off.',
-                'action': 'Use the avalanche method: pay off highest interest first'
-            })
-    
-    # 消费模式分析
-    category_totals = {}
-    for e in expenses:
-        if e['type'] == 'expense':
-            cat = e['category']
-            category_totals[cat] = category_totals.get(cat, 0) + e['amount']
-    
+            suggestions.append({'type':'warning','icon':'🏦','title':'High Interest Loans',
+                'message':f'You have {len(high_interest)} loan(s) above 10% interest.',
+                'action':'Pay off highest interest loan first'})
+
     if category_totals:
-        top_category = max(category_totals, key=category_totals.get)
-        suggestions.append({
-            'type': 'info',
-            'icon': '📈',
-            'title': 'Spending Pattern Analysis',
-            'message': f'Your highest spending category is {top_category} (${category_totals[top_category]:.2f}). Review if this aligns with your priorities.',
-            'action': 'Set spending alerts for this category'
-        })
-    
-    # 通用建议
+        top_cat = max(category_totals, key=category_totals.get)
+        suggestions.append({'type':'info','icon':'📈','title':'Top Spending Category',
+            'message':f'Highest spend: {top_cat} (RM{category_totals[top_cat]:.2f}).',
+            'action':'Review if this aligns with your goals'})
+
     if not suggestions:
-        suggestions.append({
-            'type': 'tip',
-            'icon': '🚀',
-            'title': 'Start Tracking',
-            'message': 'Add more transactions to get personalized financial insights!',
-            'action': 'Record all expenses for better analysis'
-        })
-    
-    return render_template('insights.html', suggestions=suggestions, 
-                         total_spent=total_spent, total_income=total_income,
-                         category_data=category_totals)
-# ============== 报告生成 ==============
+        suggestions.append({'type':'tip','icon':'🚀','title':'Start Tracking',
+            'message':'Add transactions to get personalized insights!',
+            'action':'Record all expenses for better analysis'})
+
+    return render_template('insights.html', suggestions=suggestions,
+                           total_spent=total_spent, total_income=total_income,
+                           category_data=category_totals)
+
+# ============== REPORT ==============
 @app.route('/report')
 @login_required
 def report():
-    email = session['user_id']
-    expenses = expenses_db.get(email, [])
-    budgets = budgets_db.get(email, {})
-    loans = loans_db.get(email, [])
-    
-    # 按月份分组
+    user_id = session['user_id']
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT t.*, c.name as category FROM transactions t
+        LEFT JOIN categories c ON t.category_id=c.id
+        WHERE t.user_id=%s ORDER BY t.date DESC
+    """, (user_id,))
+    all_transactions = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT b.*, c.name as category_name,
+               COALESCE((SELECT SUM(t.amount) FROM transactions t
+                WHERE t.user_id=b.user_id AND t.category_id=b.category_id AND t.type='expense'),0) as spent
+        FROM budgets b LEFT JOIN categories c ON b.category_id=c.id
+        WHERE b.user_id=%s
+    """, (user_id,))
+    budgets_raw = cursor.fetchall()
+    budgets = {b['category_name']: {'limit': float(b['amount']), 'spent': float(b['spent'])} for b in budgets_raw}
+
+    cursor.execute("SELECT * FROM loans WHERE user_id=%s", (user_id,))
+    loans = cursor.fetchall()
+    cursor.close(); db.close()
+
     monthly_data = {}
-    for e in expenses:
-        month = e['date'][:7]  # YYYY-MM
+    for e in all_transactions:
+        month = str(e['date'])[:7]
         if month not in monthly_data:
             monthly_data[month] = {'income': 0, 'expense': 0, 'transactions': []}
-        
         if e['type'] == 'income':
-            monthly_data[month]['income'] += e['amount']
+            monthly_data[month]['income'] += float(e['amount'])
         else:
-            monthly_data[month]['expense'] += e['amount']
+            monthly_data[month]['expense'] += float(e['amount'])
         monthly_data[month]['transactions'].append(e)
-    
-    # 排序
+
     sorted_months = sorted(monthly_data.keys(), reverse=True)
-    
-    return render_template('report.html', 
-                         monthly_data=monthly_data, 
-                         sorted_months=sorted_months,
-                         budgets=budgets,
-                         loans=loans)
-# ============== 下载报告 ==============
+
+    return render_template('report.html',
+                           monthly_data=monthly_data,
+                           sorted_months=sorted_months,
+                           budgets=budgets,
+                           loans=loans)
+
+# ============== DOWNLOAD REPORT ==============
 @app.route('/report/download/<month>')
 @login_required
 def download_report(month):
-    email = session['user_id']
-    expenses = expenses_db.get(email, [])
-    budgets = budgets_db.get(email, {})
-    
-    # 筛选当月数据
-    month_expenses = [e for e in expenses if e['date'].startswith(month)]
-    
-    # 生成报告内容
-    report_lines = [
+    user_id = session['user_id']
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT t.*, c.name as category FROM transactions t
+        LEFT JOIN categories c ON t.category_id=c.id
+        WHERE t.user_id=%s AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
+        ORDER BY t.date
+    """, (user_id, month))
+    month_expenses = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT b.*, c.name as category_name,
+               COALESCE((SELECT SUM(t.amount) FROM transactions t
+                WHERE t.user_id=b.user_id AND t.category_id=b.category_id
+                AND t.type='expense' AND DATE_FORMAT(t.date,'%%Y-%%m')=%s),0) as spent
+        FROM budgets b LEFT JOIN categories c ON b.category_id=c.id
+        WHERE b.user_id=%s
+    """, (month, user_id))
+    budgets_raw = cursor.fetchall()
+    cursor.close(); db.close()
+
+    total_income  = sum(float(e['amount']) for e in month_expenses if e['type'] == 'income')
+    total_expense = sum(float(e['amount']) for e in month_expenses if e['type'] == 'expense')
+
+    lines = [
         "=" * 50,
-        f"    BUDGET MASTER - MONTHLY FINANCIAL REPORT",
+        "    BUDGET MASTER - MONTHLY FINANCIAL REPORT",
         f"    Month: {month}",
         f"    Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
         f"    User: {session['username']}",
-        "=" * 50,
-        "",
-        "📊 SUMMARY",
-        "-" * 30,
+        "=" * 50, "",
+        "SUMMARY", "-" * 30,
+        f"Total Income:    RM{total_income:,.2f}",
+        f"Total Expenses:  RM{total_expense:,.2f}",
+        f"Net Balance:     RM{total_income - total_expense:,.2f}",
+        "", "TRANSACTIONS", "-" * 30,
     ]
-    
-    total_income = sum(e['amount'] for e in month_expenses if e['type'] == 'income')
-    total_expense = sum(e['amount'] for e in month_expenses if e['type'] == 'expense')
-    
-    report_lines.extend([
-        f"Total Income:    ${total_income:,.2f}",
-        f"Total Expenses:  ${total_expense:,.2f}",
-        f"Net Balance:     ${total_income - total_expense:,.2f}",
-        "",
-        "📝 TRANSACTIONS",
-        "-" * 30,
-    ])
-    
-    for e in sorted(month_expenses, key=lambda x: x['date']):
+
+    for e in month_expenses:
         sign = '+' if e['type'] == 'income' else '-'
-        report_lines.append(f"{e['date']} | {e['category']:15} | {sign}${e['amount']:>10.2f} | {e.get('note', '')}")
-    
-    report_lines.extend([
-        "",
-        "💰 BUDGET STATUS",
-        "-" * 30,
-    ])
-    
-    for cat, data in budgets.items():
-        status = "✅" if data['spent'] <= data['limit'] else "⚠️"
-        report_lines.append(f"{status} {cat}: ${data['spent']:.2f} / ${data['limit']:.2f}")
-    
-    report_lines.extend([
-        "",
-        "=" * 50,
-        "Generated by Budget Master | Your Financial Partner",
-        "=" * 50,
-    ])
-    
-    report_content = "\n".join(report_lines)
-    
-    response = make_response(report_content)
+        lines.append(f"{e['date']} | {str(e['category']):15} | {sign}RM{float(e['amount']):>10.2f} | {e.get('description','')}")
+
+    lines += ["", "BUDGET STATUS", "-" * 30]
+    for b in budgets_raw:
+        status = "OK" if float(b['spent']) <= float(b['amount']) else "OVER"
+        lines.append(f"[{status}] {b['category_name']}: RM{float(b['spent']):.2f} / RM{float(b['amount']):.2f}")
+
+    lines += ["", "=" * 50, "Generated by Budget Master", "=" * 50]
+
+    response = make_response("\n".join(lines))
     response.headers['Content-Type'] = 'text/plain; charset=utf-8'
     response.headers['Content-Disposition'] = f'attachment; filename=budget_report_{month}.txt'
-    
     return response
-# ============== API: 图表数据 ==============
+
+# ============== API: CHART DATA ==============
 @app.route('/api/chart-data')
 @login_required
 def chart_data():
-    email = session['user_id']
-    expenses = expenses_db.get(email, [])
-    
-    # 分类数据
-    category_totals = {}
-    for e in expenses:
-        if e['type'] == 'expense':
-            cat = e['category']
-            category_totals[cat] = category_totals.get(cat, 0) + e['amount']
-    
-    # 月度趋势
-    monthly_totals = {}
-    for e in expenses:
-        month = e['date'][:7]
-        if month not in monthly_totals:
-            monthly_totals[month] = {'income': 0, 'expense': 0}
-        if e['type'] == 'income':
-            monthly_totals[month]['income'] += e['amount']
-        else:
-            monthly_totals[month]['expense'] += e['amount']
-    
-    return jsonify({
-        'categories': category_totals,
-        'monthly': monthly_totals
-    })
-# ============== 运行应用 ==============
+    user_id = session['user_id']
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT c.name as category, SUM(t.amount) as total
+        FROM transactions t LEFT JOIN categories c ON t.category_id=c.id
+        WHERE t.user_id=%s AND t.type='expense' GROUP BY c.name
+    """, (user_id,))
+    category_totals = {row['category']: float(row['total']) for row in cursor.fetchall()}
+
+    cursor.execute("""
+        SELECT DATE_FORMAT(date,'%%Y-%%m') as month,
+               SUM(CASE WHEN type='income'  THEN amount ELSE 0 END) as income,
+               SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as expense
+        FROM transactions WHERE user_id=%s
+        GROUP BY month ORDER BY month
+    """, (user_id,))
+    monthly = {row['month']: {'income': float(row['income']), 'expense': float(row['expense'])} for row in cursor.fetchall()}
+
+    cursor.close(); db.close()
+    return jsonify({'categories': category_totals, 'monthly': monthly})
+
+# ============== RUN ==============
 if __name__ == "__main__":
     app.run(debug=True)
