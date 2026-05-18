@@ -319,10 +319,10 @@ def expenses():
         )
         cat = cursor.fetchone()
         if not cat:
-            cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (NULL, %s, 'expense')", (category,))
-            cat_id = cursor.lastrowid
-        else:
-            cat_id = cat['id']
+            cursor.execute(
+                "SELECT id FROM categories WHERE LOWER(name)=LOWER(%s)", (category,)
+            )
+    cat = cursor.fetchone()
 
         cursor.execute(
             "INSERT INTO transactions (user_id, category_id, type, amount, description, date) VALUES (%s,%s,%s,%s,%s,%s)",
