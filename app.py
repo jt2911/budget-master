@@ -312,7 +312,11 @@ def expenses():
         tx_type  = request.form.get('type', 'expense')
         note     = request.form.get('note', '')
 
-        cursor.execute("SELECT id FROM categories WHERE LOWER(name)=LOWER(%s)", (category,))
+        # In /expenses POST, change the category lookup to:
+        cursor.execute(
+            "SELECT id FROM categories WHERE LOWER(name)=LOWER(%s) AND user_id IS NULL",
+            (category,)
+        )
         cat = cursor.fetchone()
         if not cat:
             cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (NULL, %s, 'expense')", (category,))
@@ -353,7 +357,10 @@ def edit_expense(expense_id):
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
-    cursor.execute("SELECT id FROM categories WHERE name=%s AND user_id IS NULL", (category,))
+    cursor.execute(
+            "SELECT id FROM categories WHERE LOWER(name)=LOWER(%s) AND user_id IS NULL",
+            (category,)
+        )
     cat = cursor.fetchone()
     if not cat:
         cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (NULL, %s, %s)", (category, tx_type))
