@@ -387,54 +387,58 @@ def delete_expense(expense_id):
 @app.route('/budget', methods=['GET', 'POST'])
 @login_required
 def budget():
-    user_id = session['user_id']
-    db = get_db()
-    cursor = db.cursor(dictionary=True)
-    current_month = datetime.now().strftime('%Y-%m')
+    try:
+        user_id = session['user_id']
+        db = get_db()
+        cursor = db.cursor(dictionary=True)
+        current_month = datetime.now().strftime('%Y-%m')
 
-    if request.method == 'POST':
-        category = request.form.get('category')
-        limit    = float(request.form.get('limit'))
+        if request.method == 'POST':
+            category = request.form.get('category')
+            limit    = float(request.form.get('limit'))
 
-        cursor.execute("SELECT id FROM categories WHERE LOWER(name)=LOWER(%s)", (category,))
-        cat = cursor.fetchone()
-        if not cat:
-            cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (NULL, %s, 'expense')", (category,))
-            cat_id = cursor.lastrowid
-        else:
-            cat_id = cat['id']
+            cursor.execute("SELECT id FROM categories WHERE LOWER(name)=LOWER(%s)", (category,))
+            cat = cursor.fetchone()
+            if not cat:
+                cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (NULL, %s, 'expense')", (category,))
+                cat_id = cursor.lastrowid
+            else:
+                cat_id = cat['id']
 
-        cursor.execute("SELECT id FROM budgets WHERE user_id=%s AND category_id=%s", (user_id, cat_id))
-        existing = cursor.fetchone()
-        if existing:
-            cursor.execute("UPDATE budgets SET amount=%s WHERE id=%s", (limit, existing['id']))
-        else:
-            cursor.execute(
-                "INSERT INTO budgets (user_id, category_id, name, amount, period) VALUES (%s,%s,%s,%s,'monthly')",
-                (user_id, cat_id, category, limit)
-            )
-        db.commit()
-        flash(f'Budget for {category} updated!', 'success')
+            cursor.execute("SELECT id FROM budgets WHERE user_id=%s AND category_id=%s", (user_id, cat_id))
+            existing = cursor.fetchone()
+            if existing:
+                cursor.execute("UPDATE budgets SET amount=%s WHERE id=%s", (limit, existing['id']))
+            else:
+                cursor.execute(
+                    "INSERT INTO budgets (user_id, category_id, name, amount, period) VALUES (%s,%s,%s,%s,'monthly')",
+                    (user_id, cat_id, category, limit)
+                )
+            db.commit()
+            flash(f'Budget for {category} updated!', 'success')
+            cursor.close(); db.close()
+            return redirect(url_for('budget'))
+
+        cursor.execute("""
+            SELECT b.*, c.name as category_name,
+                   COALESCE((
+                       SELECT SUM(t.amount) FROM transactions t
+                       WHERE t.user_id=b.user_id AND t.category_id=b.category_id
+                       AND t.type='expense' AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
+                   ),0) as spent
+            FROM budgets b
+            LEFT JOIN categories c ON b.category_id = c.id
+            WHERE b.user_id=%s
+        """, (current_month, user_id))
+        budgets_raw = cursor.fetchall()
+        budgets = {b['category_name']: {'limit': float(b['amount']), 'spent': float(b['spent'])} for b in budgets_raw}
+
         cursor.close(); db.close()
-        return redirect(url_for('budget'))
+        return render_template('budget.html', budgets=budgets)
 
-    cursor.execute("""
-        SELECT b.*, c.name as category_name,
-               COALESCE((
-                   SELECT SUM(t.amount) FROM transactions t
-                   WHERE t.user_id=b.user_id AND t.category_id=b.category_id
-                   AND t.type='expense' AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
-               ),0) as spent
-        FROM budgets b
-        LEFT JOIN categories c ON b.category_id = c.id
-        WHERE b.user_id=%s
-    """, (current_month, user_id))
-    budgets_raw = cursor.fetchall()
-    budgets = {b['category_name']: {'limit': float(b['amount']), 'spent': float(b['spent'])} for b in budgets_raw}
-
-    cursor.close(); db.close()
-    return render_template('budget.html', budgets=budgets)
-
+    except Exception as e:
+        return f"ERROR: {str(e)}", 500
+    
 # ============== LOANS ==============
 @app.route('/loans', methods=['GET', 'POST'])
 @login_required
