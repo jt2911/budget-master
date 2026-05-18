@@ -26,6 +26,7 @@ def get_db():
             user=parsed.username,
             password=parsed.password,
             database=parsed.path.lstrip('/')
+            consume_results=True
         )
     else:
         conn = mysql.connector.connect(
@@ -34,6 +35,7 @@ def get_db():
             user="root",
             password="",
             database="budget_master"
+            consume_results=True
         )
     return conn
 
@@ -301,7 +303,7 @@ def dashboard():
 def expenses():
     user_id = session['user_id']
     db = get_db()
-    cursor = db.cursor(dictionary=True)
+    cursor = db.cursor(dictionary=True, buffered=True)
 
     if request.method == 'POST':
         date     = request.form.get('date')
@@ -390,7 +392,7 @@ def budget():
     try:
         user_id = session['user_id']
         db = get_db()
-        cursor = db.cursor(dictionary=True)
+        cursor = db.cursor(dictionary=True, buffered=True)
         current_month = datetime.now().strftime('%Y-%m')
 
         if request.method == 'POST':
@@ -445,7 +447,7 @@ def budget():
 def loans():
     user_id = session['user_id']
     db = get_db()
-    cursor = db.cursor(dictionary=True)
+    cursor = db.cursor(dictionary=True, buffered=True)
 
     if request.method == 'POST':
         action = request.form.get('action')
@@ -507,7 +509,7 @@ def loans():
 def insights():
     user_id = session['user_id']
     db = get_db()
-    cursor = db.cursor(dictionary=True)
+    cursor = db.cursor(dictionary=True, buffered=True)
     current_month = datetime.now().strftime('%Y-%m')
 
     cursor.execute("SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=%s AND type='expense'", (user_id,))
@@ -591,8 +593,7 @@ def insights():
 def report():
     user_id = session['user_id']
     db = get_db()
-    cursor = db.cursor(dictionary=True)
-
+    cursor = db.cursor(dictionary=True, buffered=True)
     cursor.execute("""
         SELECT t.*, c.name as category FROM transactions t
         LEFT JOIN categories c ON t.category_id=c.id
@@ -639,7 +640,7 @@ def report():
 def download_report(month):
     user_id = session['user_id']
     db = get_db()
-    cursor = db.cursor(dictionary=True)
+    cursor = db.cursor(dictionary=True, buffered=True)
 
     cursor.execute("""
         SELECT t.*, c.name as category FROM transactions t
@@ -699,7 +700,7 @@ def download_report(month):
 def chart_data():
     user_id = session['user_id']
     db = get_db()
-    cursor = db.cursor(dictionary=True)
+    cursor = db.cursor(dictionary=True, buffered=True)
 
     cursor.execute("""
         SELECT c.name as category, SUM(t.amount) as total
