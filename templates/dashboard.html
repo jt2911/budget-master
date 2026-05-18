@@ -128,7 +128,7 @@
                         </div>
                         <div class="transaction-info">
                             <span class="transaction-category">{{ expense.category }}</span>
-                            <span class="transaction-note">{{ expense.note or 'No note' }}</span>
+                            <span class="transaction-note">{{ expense.description or 'No note' }}</span>
                         </div>
                         <div class="transaction-meta">
                             <span class="transaction-amount {{ expense.type }}">
