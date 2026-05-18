@@ -8,6 +8,8 @@ import random
 import string
 import mysql.connector
 import os
+import sendgrid
+from sendgrid.helpers.mail import Mail as SGMail, TrackingSettings, ClickTracking
 
 app = Flask(__name__)
 app.jinja_env.globals['now'] = datetime.now
@@ -15,8 +17,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'your-local-dev-secret-key')
 
 # ============== DATABASE CONNECTION ==============
 def get_db():
-    mysql_url = os.environ.get("MYSQL_URL") or os.environ.get("MYSQL_PUBLIC_URL")
-
+    mysql_url = os.environ.get("MYSQL_PUBLIC_URL") or os.environ.get("MYSQL_URL")
     if mysql_url:
         parsed = urlparse(mysql_url)
         conn = mysql.connector.connect(
@@ -27,7 +28,6 @@ def get_db():
             database=parsed.path.lstrip('/')
         )
     else:
-        # Local XAMPP fallback
         conn = mysql.connector.connect(
             host="127.0.0.1",
             port=3306,
@@ -36,6 +36,7 @@ def get_db():
             database="budget_master"
         )
     return conn
+
 # ============== LOGIN DECORATOR ==============
 def login_required(f):
     @wraps(f)
@@ -96,30 +97,26 @@ def register():
         )
         user_id = cursor.lastrowid
 
-        # Default budgets for new user
         default_budgets = [
-            ('Necessities', 1000), ('Entertainment', 300),
-            ('Savings', 500), ('Education', 200),
-            ('Health', 150), ('Others', 100)
+            ('Food & Dining', 600), ('Transport', 300),
+            ('Shopping', 500), ('Entertainment', 300),
+            ('Education', 200), ('Healthcare', 150),
+            ('Utilities', 200), ('Rent / Housing', 1200)
         ]
-        # Find or create category IDs and insert budgets
         for cat_name, amount in default_budgets:
-            cursor.execute("SELECT id FROM categories WHERE name = %s AND (user_id IS NULL OR user_id = %s)", (cat_name, user_id))
-            cat = cursor.fetchone()
-            if not cat:
-                cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (%s, %s, 'expense')", (user_id, cat_name))
-                cat_id = cursor.lastrowid
-            else:
-                cat_id = cat['id']
-
             cursor.execute(
-                "INSERT INTO budgets (user_id, category_id, name, amount, period) VALUES (%s, %s, %s, %s, 'monthly')",
-                (user_id, cat_id, cat_name, amount)
+                "SELECT id FROM categories WHERE name = %s AND user_id IS NULL",
+                (cat_name,)
             )
+            cat = cursor.fetchone()
+            if cat:
+                cursor.execute(
+                    "INSERT INTO budgets (user_id, category_id, name, amount, period) VALUES (%s,%s,%s,%s,'monthly')",
+                    (user_id, cat['id'], cat_name, amount)
+                )
 
         db.commit()
         cursor.close(); db.close()
-
         flash('Registration successful! Please login.', 'success')
         return redirect(url_for('login'))
 
@@ -148,9 +145,6 @@ def login():
 
     return render_template('login.html')
 
-import sendgrid
-from sendgrid.helpers.mail import Mail as SGMail, TrackingSettings, ClickTracking
-
 # ============== FORGOT PASSWORD ==============
 @app.route('/forgot', methods=['GET', 'POST'])
 def forgot():
@@ -158,7 +152,7 @@ def forgot():
         email = request.form.get('email')
         if email:
             token = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
-            expires = datetime.now() + timedelta(hours=1)
+            expires = datetime.utcnow() + timedelta(hours=1)
 
             db = get_db()
             cursor = db.cursor()
@@ -178,17 +172,16 @@ def forgot():
                     subject='Budget Master - Password Reset',
                     plain_text_content=f'Click to reset your password (valid 1 hour):\n{reset_link}'
                 )
-                # Disable click tracking using proper SDK objects
                 tracking = TrackingSettings()
                 tracking.click_tracking = ClickTracking(enable=False, enable_text=False)
                 message.tracking_settings = tracking
-
                 sg.send(message)
                 flash(f'Password reset link sent to {email}!', 'success')
             except Exception as e:
                 flash(f'Email error: {str(e)}', 'error')
 
     return render_template('forgot.html')
+
 # ============== RESET PASSWORD ==============
 @app.route('/reset/<token>', methods=['GET', 'POST'])
 def reset_password(token):
@@ -202,12 +195,11 @@ def reset_password(token):
         cursor.close(); db.close()
         return redirect(url_for('forgot'))
 
-    # Compare as strings to avoid timezone issues
     expires_at = record['expires_at']
     now = datetime.utcnow()
     if isinstance(expires_at, str):
         expires_at = datetime.strptime(expires_at, '%Y-%m-%d %H:%M:%S')
-    
+
     if expires_at < now:
         flash('Reset link has expired. Please request a new one.', 'error')
         cursor.close(); db.close()
@@ -241,19 +233,15 @@ def dashboard():
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
-    # Total income
     cursor.execute("SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=%s AND type='income'", (user_id,))
     total_income = cursor.fetchone()['total']
 
-    # Total spent
     cursor.execute("SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=%s AND type='expense'", (user_id,))
     total_spent = cursor.fetchone()['total']
 
-    # Total loan remaining
     cursor.execute("SELECT COALESCE(SUM(remaining_balance),0) as total FROM loans WHERE user_id=%s AND status='active'", (user_id,))
     total_loan = cursor.fetchone()['total']
 
-    # Monthly totals
     current_month = datetime.now().strftime('%Y-%m')
     cursor.execute("""
         SELECT COALESCE(SUM(amount),0) as total FROM transactions
@@ -261,7 +249,6 @@ def dashboard():
     """, (user_id, current_month))
     monthly_total = cursor.fetchone()['total']
 
-    # Recent 10 transactions
     cursor.execute("""
         SELECT t.*, c.name as category_name FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.id
@@ -269,14 +256,12 @@ def dashboard():
     """, (user_id,))
     expenses = cursor.fetchall()
 
-    # Budgets with spent amounts
     cursor.execute("""
         SELECT b.*, c.name as category_name,
                COALESCE((
                    SELECT SUM(t.amount) FROM transactions t
                    WHERE t.user_id=b.user_id AND t.category_id=b.category_id
-                   AND t.type='expense'
-                   AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
+                   AND t.type='expense' AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
                ),0) as spent
         FROM budgets b
         LEFT JOIN categories c ON b.category_id = c.id
@@ -285,11 +270,9 @@ def dashboard():
     budgets_raw = cursor.fetchall()
     budgets = {b['category_name']: {'limit': float(b['amount']), 'spent': float(b['spent'])} for b in budgets_raw}
 
-    # Loans
     cursor.execute("SELECT * FROM loans WHERE user_id=%s AND status='active'", (user_id,))
     loans = cursor.fetchall()
 
-    # Category breakdown
     cursor.execute("""
         SELECT c.name as category, SUM(t.amount) as total
         FROM transactions t
@@ -327,11 +310,10 @@ def expenses():
         tx_type  = request.form.get('type', 'expense')
         note     = request.form.get('note', '')
 
-        # Get or create category
-        cursor.execute("SELECT id FROM categories WHERE name=%s AND (user_id IS NULL OR user_id=%s)", (category, user_id))
+        cursor.execute("SELECT id FROM categories WHERE name=%s AND user_id IS NULL", (category,))
         cat = cursor.fetchone()
         if not cat:
-            cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (%s, %s, %s)", (user_id, category, tx_type))
+            cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (NULL, %s, 'expense')", (category,))
             cat_id = cursor.lastrowid
         else:
             cat_id = cat['id']
@@ -359,7 +341,7 @@ def expenses():
 @app.route('/edit_expense/<int:expense_id>', methods=['POST'])
 @login_required
 def edit_expense(expense_id):
-    user_id = session['user_id']
+    user_id  = session['user_id']
     date     = request.form.get('date')
     category = request.form.get('category')
     amount   = float(request.form.get('amount'))
@@ -369,17 +351,16 @@ def edit_expense(expense_id):
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
-    # Get or create category
-    cursor.execute("SELECT id FROM categories WHERE name=%s AND (user_id IS NULL OR user_id=%s)", (category, user_id))
+    cursor.execute("SELECT id FROM categories WHERE name=%s AND user_id IS NULL", (category,))
     cat = cursor.fetchone()
     if not cat:
-        cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (%s, %s, %s)", (user_id, category, tx_type))
+        cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (NULL, %s, %s)", (category, tx_type))
         cat_id = cursor.lastrowid
     else:
         cat_id = cat['id']
 
     cursor.execute("""
-        UPDATE transactions 
+        UPDATE transactions
         SET date=%s, category_id=%s, type=%s, amount=%s, description=%s
         WHERE id=%s AND user_id=%s
     """, (date, cat_id, tx_type, amount, note, expense_id, user_id))
@@ -415,16 +396,14 @@ def budget():
         category = request.form.get('category')
         limit    = float(request.form.get('limit'))
 
-        # Get or create category
-        cursor.execute("SELECT id FROM categories WHERE name=%s AND (user_id IS NULL OR user_id=%s)", (category, user_id))
+        cursor.execute("SELECT id FROM categories WHERE name=%s AND user_id IS NULL", (category,))
         cat = cursor.fetchone()
         if not cat:
-            cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (%s, %s, 'expense')", (user_id, category))
+            cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (NULL, %s, 'expense')", (category,))
             cat_id = cursor.lastrowid
         else:
             cat_id = cat['id']
 
-        # Update or insert budget
         cursor.execute("SELECT id FROM budgets WHERE user_id=%s AND category_id=%s", (user_id, cat_id))
         existing = cursor.fetchone()
         if existing:
@@ -495,7 +474,6 @@ def loans():
                 new_balance = max(0, float(loan['remaining_balance']) - payment_amount)
                 status = 'paid_off' if new_balance == 0 else 'active'
                 cursor.execute("UPDATE loans SET remaining_balance=%s, status=%s WHERE id=%s", (new_balance, status, loan_id))
-
                 cursor.execute(
                     "INSERT INTO loan_payments (loan_id, user_id, amount, payment_date) VALUES (%s,%s,%s,%s)",
                     (loan_id, user_id, payment_amount, datetime.now().strftime('%Y-%m-%d'))
@@ -511,7 +489,6 @@ def loans():
 
     cursor.execute("SELECT * FROM loans WHERE user_id=%s ORDER BY created_at DESC", (user_id,))
     user_loans = cursor.fetchall()
-    # Add estimated_payoff for template compatibility
     for loan in user_loans:
         loan['total']     = float(loan['principal'])
         loan['remaining'] = float(loan['remaining_balance'])
@@ -554,11 +531,9 @@ def insights():
 
     cursor.execute("SELECT * FROM loans WHERE user_id=%s AND status='active'", (user_id,))
     loans = cursor.fetchall()
-
     cursor.close(); db.close()
 
     suggestions = []
-
     for b in budgets:
         spent = float(b['spent'])
         limit = float(b['amount'])
