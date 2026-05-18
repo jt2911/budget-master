@@ -13,19 +13,6 @@ app = Flask(__name__)
 app.jinja_env.globals['now'] = datetime.now
 app.secret_key = os.environ.get('SECRET_KEY', 'your-local-dev-secret-key')
 
-from flask_mail import Mail, Message
-
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USE_SSL'] = False
-app.config['MAIL_TIMEOUT'] = 10          # add this
-app.config['MAIL_SUPPRESS_SEND'] = False  # add this
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'wongjt2006@gmail.com')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME', 'wongjt2006@gmail.com')
-mail = Mail(app)
-
 # ============== DATABASE CONNECTION ==============
 def get_db():
     mysql_url = os.environ.get("MYSQL_URL") or os.environ.get("MYSQL_PUBLIC_URL")
@@ -161,6 +148,9 @@ def login():
 
     return render_template('login.html')
 
+import sendgrid
+from sendgrid.helpers.mail import Mail as SGMail
+
 # ============== FORGOT PASSWORD ==============
 @app.route('/forgot', methods=['GET', 'POST'])
 def forgot():
@@ -181,9 +171,14 @@ def forgot():
 
             reset_link = url_for('reset_password', token=token, _external=True)
             try:
-                msg = Message(subject='Budget Master - Password Reset', recipients=[email])
-                msg.body = f"Click to reset your password (valid 1 hour):\n{reset_link}"
-                mail.send(msg)
+                sg = sendgrid.SendGridAPIClient(api_key=os.environ.get('SENDGRID_API_KEY'))
+                message = SGMail(
+                    from_email='wongjt2006@gmail.com',
+                    to_emails=email,
+                    subject='Budget Master - Password Reset',
+                    plain_text_content=f'Click to reset your password (valid 1 hour):\n{reset_link}'
+                )
+                sg.send(message)
                 flash(f'Password reset link sent to {email}!', 'success')
             except Exception as e:
                 flash(f'Email error: {str(e)}', 'error')
