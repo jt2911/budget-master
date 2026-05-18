@@ -173,17 +173,24 @@ def forgot():
             try:
                 sg = sendgrid.SendGridAPIClient(api_key=os.environ.get('SENDGRID_API_KEY'))
                 message = SGMail(
-                    from_email='wongjt2006@gmail.com',
-                    to_emails=email,
-                    subject='Budget Master - Password Reset',
-                    plain_text_content=f'Click to reset your password (valid 1 hour):\n{reset_link}'
-                )
-                sg.send(message)
-                flash(f'Password reset link sent to {email}!', 'success')
+                 from_email='wongjt2006@gmail.com',
+                 to_emails=email,
+                 subject='Budget Master - Password Reset',
+                 plain_text_content=f'Click to reset your password (valid 1 hour):\n{reset_link}'
+           )
+             # Disable click tracking so reset link isn't wrapped
+             message.tracking_settings = {
+                "click_tracking": {
+                "enable": False,
+                "enable_text": False
+                }
+            }
+            sg.send(message)
+            flash(f'Password reset link sent to {email}!', 'success')
             except Exception as e:
-                flash(f'Email error: {str(e)}', 'error')
+                flash(f'Email error: {str(e)}', 'error') 
 
-    return render_template('forgot.html')
+            return render_template('forgot.html')
 
 # ============== RESET PASSWORD ==============
 @app.route('/reset/<token>', methods=['GET', 'POST'])
