@@ -25,7 +25,7 @@ def get_db():
             port=parsed.port or 3306,
             user=parsed.username,
             password=parsed.password,
-            database=parsed.path.lstrip('/'),   # ← comma here
+            database=parsed.path.lstrip('/'),
             consume_results=True
         )
     else:
@@ -34,7 +34,7 @@ def get_db():
             port=3306,
             user="root",
             password="",
-            database="budget_master",           # ← comma here
+            database="budget_master",
             consume_results=True
         )
     return conn
@@ -312,17 +312,28 @@ def expenses():
         tx_type  = request.form.get('type', 'expense')
         note     = request.form.get('note', '')
 
-        # In /expenses POST, change the category lookup to:
+        # Always prefer global (user_id IS NULL) categories to match budgets
         cursor.execute(
             "SELECT id FROM categories WHERE LOWER(name)=LOWER(%s) AND user_id IS NULL",
             (category,)
         )
         cat = cursor.fetchone()
         if not cat:
+            # Fall back to any matching category
             cursor.execute(
-                "SELECT id FROM categories WHERE LOWER(name)=LOWER(%s)", (category,)
+                "SELECT id FROM categories WHERE LOWER(name)=LOWER(%s)",
+                (category,)
             )
-    cat = cursor.fetchone()
+            cat = cursor.fetchone()
+        if not cat:
+            # Create new global category if none exists
+            cursor.execute(
+                "INSERT INTO categories (user_id, name, type) VALUES (NULL, %s, 'expense')",
+                (category,)
+            )
+            cat_id = cursor.lastrowid
+        else:
+            cat_id = cat['id']
 
         cursor.execute(
             "INSERT INTO transactions (user_id, category_id, type, amount, description, date) VALUES (%s,%s,%s,%s,%s,%s)",
@@ -357,13 +368,17 @@ def edit_expense(expense_id):
     db = get_db()
     cursor = db.cursor(dictionary=True)
 
+    # Always prefer global (user_id IS NULL) categories to match budgets
     cursor.execute(
-            "SELECT id FROM categories WHERE LOWER(name)=LOWER(%s) AND user_id IS NULL",
-            (category,)
-        )
+        "SELECT id FROM categories WHERE LOWER(name)=LOWER(%s) AND user_id IS NULL",
+        (category,)
+    )
     cat = cursor.fetchone()
     if not cat:
-        cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (NULL, %s, %s)", (category, tx_type))
+        cursor.execute(
+            "INSERT INTO categories (user_id, name, type) VALUES (NULL, %s, %s)",
+            (category, tx_type)
+        )
         cat_id = cursor.lastrowid
     else:
         cat_id = cat['id']
@@ -405,10 +420,23 @@ def budget():
         category = request.form.get('category')
         limit    = float(request.form.get('limit'))
 
-        cursor.execute("SELECT id FROM categories WHERE LOWER(name)=LOWER(%s)", (category,))
+        # Prefer global categories to stay consistent with transactions
+        cursor.execute(
+            "SELECT id FROM categories WHERE LOWER(name)=LOWER(%s) AND user_id IS NULL",
+            (category,)
+        )
         cat = cursor.fetchone()
         if not cat:
-            cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (NULL, %s, 'expense')", (category,))
+            cursor.execute(
+                "SELECT id FROM categories WHERE LOWER(name)=LOWER(%s)",
+                (category,)
+            )
+            cat = cursor.fetchone()
+        if not cat:
+            cursor.execute(
+                "INSERT INTO categories (user_id, name, type) VALUES (NULL, %s, 'expense')",
+                (category,)
+            )
             cat_id = cursor.lastrowid
         else:
             cat_id = cat['id']
@@ -443,7 +471,7 @@ def budget():
 
     cursor.close(); db.close()
     return render_template('budget.html', budgets=budgets)
-    
+
 # ============== LOANS ==============
 @app.route('/loans', methods=['GET', 'POST'])
 @login_required
@@ -712,12 +740,14 @@ def chart_data():
     """, (user_id,))
     category_totals = {row['category']: float(row['total']) for row in cursor.fetchall()}
 
+    # FIX: GROUP BY the full expression instead of the alias to avoid literal %Y-%m output
     cursor.execute("""
         SELECT DATE_FORMAT(date,'%%Y-%%m') as month,
                SUM(CASE WHEN type='income'  THEN amount ELSE 0 END) as income,
                SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as expense
         FROM transactions WHERE user_id=%s
-        GROUP BY month ORDER BY month
+        GROUP BY DATE_FORMAT(date,'%%Y-%%m')
+        ORDER BY DATE_FORMAT(date,'%%Y-%%m')
     """, (user_id,))
     monthly = {row['month']: {'income': float(row['income']), 'expense': float(row['expense'])} for row in cursor.fetchall()}
 
