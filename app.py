@@ -149,10 +149,7 @@ def login():
     return render_template('login.html')
 
 import sendgrid
-from sendgrid.helpers.mail import Mail as SGMail
-
-import sendgrid
-from sendgrid.helpers.mail import Mail as SGMail
+from sendgrid.helpers.mail import Mail as SGMail, TrackingSettings, ClickTracking
 
 # ============== FORGOT PASSWORD ==============
 @app.route('/forgot', methods=['GET', 'POST'])
@@ -181,12 +178,11 @@ def forgot():
                     subject='Budget Master - Password Reset',
                     plain_text_content=f'Click to reset your password (valid 1 hour):\n{reset_link}'
                 )
-                message.tracking_settings = {
-                    "click_tracking": {
-                        "enable": False,
-                        "enable_text": False
-                    }
-                }
+                # Disable click tracking using proper SDK objects
+                tracking = TrackingSettings()
+                tracking.click_tracking = ClickTracking(enable=False, enable_text=False)
+                message.tracking_settings = tracking
+
                 sg.send(message)
                 flash(f'Password reset link sent to {email}!', 'success')
             except Exception as e:
