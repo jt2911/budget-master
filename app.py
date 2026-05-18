@@ -18,6 +18,9 @@ from flask_mail import Mail, Message
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
+app.config['MAIL_TIMEOUT'] = 10          # add this
+app.config['MAIL_SUPPRESS_SEND'] = False  # add this
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'wongjt2006@gmail.com')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME', 'wongjt2006@gmail.com')
