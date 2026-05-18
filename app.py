@@ -356,7 +356,7 @@ def expenses():
     return render_template('expenses.html', expenses=user_expenses)
 
 # ============== EDIT EXPENSE ==============
-@app.route('/expenses/edit/<int:expense_id>', methods=['POST'])
+@app.route('/edit_expense/<int:expense_id>', methods=['POST'])
 @login_required
 def edit_expense(expense_id):
     user_id = session['user_id']
