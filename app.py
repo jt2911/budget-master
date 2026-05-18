@@ -2,36 +2,50 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 import json
 import random
 import string
 import mysql.connector
+import os
 
 app = Flask(__name__)
 app.jinja_env.globals['now'] = datetime.now
-app.secret_key = 'your-super-secret-key-change-this-in-production'
+app.secret_key = os.environ.get('SECRET_KEY', 'your-local-dev-secret-key')
 
 from flask_mail import Mail, Message
-import os
+
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'wongjt2006@gmail.com'
-app.config['MAIL_PASSWORD'] = 'pxpofoimgsysvrox'
-app.config['MAIL_DEFAULT_SENDER'] = 'wongjt2006@gmail.com'
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'wongjt2006@gmail.com')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME', 'wongjt2006@gmail.com')
 mail = Mail(app)
 
 # ============== DATABASE CONNECTION ==============
 def get_db():
-    conn = mysql.connector.connect(
-        host="127.0.0.1",
-        port=3306,
-        user="root",
-        password="",
-        database="budget_master"
-    )
-    return conn
+    mysql_url = os.environ.get("MYSQL_URL") or os.environ.get("MYSQL_PUBLIC_URL")
 
+    if mysql_url:
+        parsed = urlparse(mysql_url)
+        conn = mysql.connector.connect(
+            host=parsed.hostname,
+            port=parsed.port or 3306,
+            user=parsed.username,
+            password=parsed.password,
+            database=parsed.path.lstrip('/')
+        )
+    else:
+        # Local XAMPP fallback
+        conn = mysql.connector.connect(
+            host="127.0.0.1",
+            port=3306,
+            user="root",
+            password="",
+            database="budget_master"
+        )
+    return conn
 # ============== LOGIN DECORATOR ==============
 def login_required(f):
     @wraps(f)
