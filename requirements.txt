@@ -1,5 +1,5 @@
 flask
 gunicorn
 reportlab
-Flask-Mail
 mysql-connector-python
+sendgrid
