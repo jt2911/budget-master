@@ -355,6 +355,40 @@ def expenses():
 
     return render_template('expenses.html', expenses=user_expenses)
 
+# ============== EDIT EXPENSE ==============
+@app.route('/expenses/edit/<int:expense_id>', methods=['POST'])
+@login_required
+def edit_expense(expense_id):
+    user_id = session['user_id']
+    date     = request.form.get('date')
+    category = request.form.get('category')
+    amount   = float(request.form.get('amount'))
+    tx_type  = request.form.get('type', 'expense')
+    note     = request.form.get('note', '')
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+
+    # Get or create category
+    cursor.execute("SELECT id FROM categories WHERE name=%s AND (user_id IS NULL OR user_id=%s)", (category, user_id))
+    cat = cursor.fetchone()
+    if not cat:
+        cursor.execute("INSERT INTO categories (user_id, name, type) VALUES (%s, %s, %s)", (user_id, category, tx_type))
+        cat_id = cursor.lastrowid
+    else:
+        cat_id = cat['id']
+
+    cursor.execute("""
+        UPDATE transactions 
+        SET date=%s, category_id=%s, type=%s, amount=%s, description=%s
+        WHERE id=%s AND user_id=%s
+    """, (date, cat_id, tx_type, amount, note, expense_id, user_id))
+
+    db.commit()
+    cursor.close(); db.close()
+    flash('Transaction updated successfully!', 'success')
+    return redirect(url_for('expenses'))
+
 # ============== DELETE EXPENSE ==============
 @app.route('/expenses/delete/<int:expense_id>', methods=['POST'])
 @login_required
