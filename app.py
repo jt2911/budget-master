@@ -25,7 +25,7 @@ def get_db():
             port=parsed.port or 3306,
             user=parsed.username,
             password=parsed.password,
-            database=parsed.path.lstrip('/')
+            database=parsed.path.lstrip('/'),   # ← comma here
             consume_results=True
         )
     else:
@@ -34,7 +34,7 @@ def get_db():
             port=3306,
             user="root",
             password="",
-            database="budget_master"
+            database="budget_master",           # ← comma here
             consume_results=True
         )
     return conn
