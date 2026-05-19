@@ -259,18 +259,29 @@ def dashboard():
     expenses = cursor.fetchall()
 
     cursor.execute("""
-        SELECT b.*, c.name as category_name,
-               COALESCE((
-                   SELECT SUM(t.amount) FROM transactions t
-                   WHERE t.user_id=b.user_id AND t.category_id=b.category_id
-                   AND t.type='expense' AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
-               ),0) as spent
+        SELECT b.amount, c.name as category_name
         FROM budgets b
         LEFT JOIN categories c ON b.category_id = c.id
         WHERE b.user_id=%s
-    """, (current_month, user_id))
+    """, (user_id,))
     budgets_raw = cursor.fetchall()
-    budgets = {b['category_name']: {'limit': float(b['amount']), 'spent': float(b['spent'])} for b in budgets_raw}
+
+    cursor.execute("""
+        SELECT c.name as category_name, COALESCE(SUM(t.amount),0) as spent
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id=%s AND t.type='expense'
+        AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
+        GROUP BY c.name
+    """, (user_id, current_month))
+    spent_map = {row['category_name'].lower(): float(row['spent']) for row in cursor.fetchall()}
+    budgets = {
+        b['category_name']: {
+            'limit': float(b['amount']),
+            'spent': spent_map.get(b['category_name'].lower(), 0.0)
+        }
+        for b in budgets_raw
+    }
 
     cursor.execute("SELECT * FROM loans WHERE user_id=%s AND status='active'", (user_id,))
     loans = cursor.fetchall()
@@ -456,18 +467,29 @@ def budget():
         return redirect(url_for('budget'))
 
     cursor.execute("""
-        SELECT b.*, c.name as category_name,
-               COALESCE((
-                   SELECT SUM(t.amount) FROM transactions t
-                   WHERE t.user_id=b.user_id AND t.category_id=b.category_id
-                   AND t.type='expense' AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
-               ),0) as spent
+        SELECT b.amount, c.name as category_name
         FROM budgets b
         LEFT JOIN categories c ON b.category_id = c.id
         WHERE b.user_id=%s
-    """, (current_month, user_id))
+    """, (user_id,))
     budgets_raw = cursor.fetchall()
-    budgets = {b['category_name']: {'limit': float(b['amount']), 'spent': float(b['spent'])} for b in budgets_raw}
+
+    cursor.execute("""
+        SELECT c.name as category_name, COALESCE(SUM(t.amount),0) as spent
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id=%s AND t.type='expense'
+        AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
+        GROUP BY c.name
+    """, (user_id, current_month))
+    spent_map = {row['category_name'].lower(): float(row['spent']) for row in cursor.fetchall()}
+    budgets = {
+        b['category_name']: {
+            'limit': float(b['amount']),
+            'spent': spent_map.get(b['category_name'].lower(), 0.0)
+        }
+        for b in budgets_raw
+    }
 
     cursor.close(); db.close()
     return render_template('budget.html', budgets=budgets)
@@ -557,14 +579,29 @@ def insights():
     category_totals = {row['category']: float(row['total']) for row in cursor.fetchall()}
 
     cursor.execute("""
-        SELECT b.*, c.name as category_name,
-               COALESCE((SELECT SUM(t.amount) FROM transactions t
-                WHERE t.user_id=b.user_id AND t.category_id=b.category_id
-                AND t.type='expense' AND DATE_FORMAT(t.date,'%%Y-%%m')=%s),0) as spent
+        SELECT b.amount, c.name as category_name
         FROM budgets b LEFT JOIN categories c ON b.category_id=c.id
         WHERE b.user_id=%s
-    """, (current_month, user_id))
-    budgets = cursor.fetchall()
+    """, (user_id,))
+    budgets_raw = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT c.name as category_name, COALESCE(SUM(t.amount),0) as spent
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id=%s AND t.type='expense'
+        AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
+        GROUP BY c.name
+    """, (user_id, current_month))
+    spent_map = {row['category_name'].lower(): float(row['spent']) for row in cursor.fetchall()}
+    budgets = [
+        {
+            'amount': b['amount'],
+            'category_name': b['category_name'],
+            'spent': spent_map.get(b['category_name'].lower(), 0.0)
+        }
+        for b in budgets_raw
+    ]
 
     cursor.execute("SELECT * FROM loans WHERE user_id=%s AND status='active'", (user_id,))
     loans = cursor.fetchall()
@@ -633,14 +670,27 @@ def report():
     all_transactions = cursor.fetchall()
 
     cursor.execute("""
-        SELECT b.*, c.name as category_name,
-               COALESCE((SELECT SUM(t.amount) FROM transactions t
-                WHERE t.user_id=b.user_id AND t.category_id=b.category_id AND t.type='expense'),0) as spent
+        SELECT b.amount, c.name as category_name
         FROM budgets b LEFT JOIN categories c ON b.category_id=c.id
         WHERE b.user_id=%s
     """, (user_id,))
     budgets_raw = cursor.fetchall()
-    budgets = {b['category_name']: {'limit': float(b['amount']), 'spent': float(b['spent'])} for b in budgets_raw}
+
+    cursor.execute("""
+        SELECT c.name as category_name, COALESCE(SUM(t.amount),0) as spent
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id=%s AND t.type='expense'
+        GROUP BY c.name
+    """, (user_id,))
+    spent_map_all = {row['category_name'].lower(): float(row['spent']) for row in cursor.fetchall()}
+    budgets = {
+        b['category_name']: {
+            'limit': float(b['amount']),
+            'spent': spent_map_all.get(b['category_name'].lower(), 0.0)
+        }
+        for b in budgets_raw
+    }
 
     cursor.execute("SELECT * FROM loans WHERE user_id=%s", (user_id,))
     loans = cursor.fetchall()
@@ -682,14 +732,29 @@ def download_report(month):
     month_expenses = cursor.fetchall()
 
     cursor.execute("""
-        SELECT b.*, c.name as category_name,
-               COALESCE((SELECT SUM(t.amount) FROM transactions t
-                WHERE t.user_id=b.user_id AND t.category_id=b.category_id
-                AND t.type='expense' AND DATE_FORMAT(t.date,'%%Y-%%m')=%s),0) as spent
+        SELECT b.amount, c.name as category_name
         FROM budgets b LEFT JOIN categories c ON b.category_id=c.id
         WHERE b.user_id=%s
-    """, (month, user_id))
-    budgets_raw = cursor.fetchall()
+    """, (user_id,))
+    budgets_base = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT c.name as category_name, COALESCE(SUM(t.amount),0) as spent
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id=%s AND t.type='expense'
+        AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
+        GROUP BY c.name
+    """, (user_id, month))
+    spent_map_dl = {row['category_name'].lower(): float(row['spent']) for row in cursor.fetchall()}
+    budgets_raw = [
+        {
+            'amount': b['amount'],
+            'category_name': b['category_name'],
+            'spent': spent_map_dl.get(b['category_name'].lower(), 0.0)
+        }
+        for b in budgets_base
+    ]
     cursor.close(); db.close()
 
     total_income  = sum(float(e['amount']) for e in month_expenses if e['type'] == 'income')
@@ -740,16 +805,21 @@ def chart_data():
     """, (user_id,))
     category_totals = {row['category']: float(row['total']) for row in cursor.fetchall()}
 
-    # FIX: GROUP BY the full expression instead of the alias to avoid literal %Y-%m output
+    # Fetch all transactions and group by month in Python to avoid MySQL DATE_FORMAT alias issues
     cursor.execute("""
-        SELECT DATE_FORMAT(date,'%%Y-%%m') as month,
-               SUM(CASE WHEN type='income'  THEN amount ELSE 0 END) as income,
-               SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as expense
-        FROM transactions WHERE user_id=%s
-        GROUP BY DATE_FORMAT(date,'%%Y-%%m')
-        ORDER BY DATE_FORMAT(date,'%%Y-%%m')
+        SELECT date, type, amount FROM transactions WHERE user_id=%s
+        ORDER BY date
     """, (user_id,))
-    monthly = {row['month']: {'income': float(row['income']), 'expense': float(row['expense'])} for row in cursor.fetchall()}
+    rows = cursor.fetchall()
+    monthly = {}
+    for row in rows:
+        month_key = str(row['date'])[:7]  # "YYYY-MM"
+        if month_key not in monthly:
+            monthly[month_key] = {'income': 0.0, 'expense': 0.0}
+        if row['type'] == 'income':
+            monthly[month_key]['income'] += float(row['amount'])
+        else:
+            monthly[month_key]['expense'] += float(row['amount'])
 
     cursor.close(); db.close()
     return jsonify({'categories': category_totals, 'monthly': monthly})
