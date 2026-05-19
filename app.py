@@ -39,6 +39,13 @@ def get_db():
         )
     return conn
 
+# ============== HELPERS ==============
+def month_range(ym_str):
+    year, month = int(ym_str[:4]), int(ym_str[5:7])
+    start = f"{year:04d}-{month:02d}-01"
+    end   = f"{year+1:04d}-01-01" if month == 12 else f"{year:04d}-{month+1:02d}-01"
+    return start, end
+
 # ============== LOGIN DECORATOR ==============
 def login_required(f):
     @wraps(f)
@@ -245,16 +252,17 @@ def dashboard():
     total_loan = cursor.fetchone()['total']
 
     current_month = datetime.now().strftime('%Y-%m')
+    m_start, m_end = month_range(current_month)
     cursor.execute("""
         SELECT COALESCE(SUM(amount),0) as total FROM transactions
-        WHERE user_id=%s AND type='expense' AND DATE_FORMAT(date,'%%Y-%%m')=%s
-    """, (user_id, current_month))
+        WHERE user_id=%s AND type='expense' AND `date`>=%s AND `date`<%s
+    """, (user_id, m_start, m_end))
     monthly_total = cursor.fetchone()['total']
 
     cursor.execute("""
         SELECT t.*, c.name as category_name FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.id
-        WHERE t.user_id=%s ORDER BY t.date DESC, t.created_at DESC LIMIT 10
+        WHERE t.user_id=%s ORDER BY t.`date` DESC, t.created_at DESC LIMIT 10
     """, (user_id,))
     expenses = cursor.fetchall()
 
@@ -271,9 +279,9 @@ def dashboard():
         FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.id
         WHERE t.user_id=%s AND t.type='expense'
-        AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
+        AND t.`date`>=%s AND t.`date`<%s
         GROUP BY c.name
-    """, (user_id, current_month))
+    """, (user_id, m_start, m_end))
     spent_map = {row['category_name'].lower(): float(row['spent']) for row in cursor.fetchall()}
     budgets = {
         b['category_name']: {
@@ -358,7 +366,7 @@ def expenses():
     cursor.execute("""
         SELECT t.*, c.name as category FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.id
-        WHERE t.user_id=%s ORDER BY t.date DESC, t.created_at DESC
+        WHERE t.user_id=%s ORDER BY t.`date` DESC, t.created_at DESC
     """, (user_id,))
     user_expenses = cursor.fetchall()
     cursor.close(); db.close()
@@ -426,6 +434,7 @@ def budget():
     db = get_db()
     cursor = db.cursor(dictionary=True, buffered=True)
     current_month = datetime.now().strftime('%Y-%m')
+    m_start, m_end = month_range(current_month)
 
     if request.method == 'POST':
         category = request.form.get('category')
@@ -479,9 +488,9 @@ def budget():
         FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.id
         WHERE t.user_id=%s AND t.type='expense'
-        AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
+        AND t.`date`>=%s AND t.`date`<%s
         GROUP BY c.name
-    """, (user_id, current_month))
+    """, (user_id, m_start, m_end))
     spent_map = {row['category_name'].lower(): float(row['spent']) for row in cursor.fetchall()}
     budgets = {
         b['category_name']: {
@@ -564,6 +573,7 @@ def insights():
     db = get_db()
     cursor = db.cursor(dictionary=True, buffered=True)
     current_month = datetime.now().strftime('%Y-%m')
+    m_start, m_end = month_range(current_month)
 
     cursor.execute("SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE user_id=%s AND type='expense'", (user_id,))
     total_spent = float(cursor.fetchone()['total'])
@@ -590,9 +600,9 @@ def insights():
         FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.id
         WHERE t.user_id=%s AND t.type='expense'
-        AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
+        AND t.`date`>=%s AND t.`date`<%s
         GROUP BY c.name
-    """, (user_id, current_month))
+    """, (user_id, m_start, m_end))
     spent_map = {row['category_name'].lower(): float(row['spent']) for row in cursor.fetchall()}
     budgets = [
         {
@@ -665,7 +675,7 @@ def report():
     cursor.execute("""
         SELECT t.*, c.name as category FROM transactions t
         LEFT JOIN categories c ON t.category_id=c.id
-        WHERE t.user_id=%s ORDER BY t.date DESC
+        WHERE t.user_id=%s ORDER BY t.`date` DESC
     """, (user_id,))
     all_transactions = cursor.fetchall()
 
@@ -723,12 +733,14 @@ def download_report(month):
     db = get_db()
     cursor = db.cursor(dictionary=True, buffered=True)
 
+    d_start, d_end = month_range(month)
+
     cursor.execute("""
         SELECT t.*, c.name as category FROM transactions t
         LEFT JOIN categories c ON t.category_id=c.id
-        WHERE t.user_id=%s AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
-        ORDER BY t.date
-    """, (user_id, month))
+        WHERE t.user_id=%s AND t.`date`>=%s AND t.`date`<%s
+        ORDER BY t.`date`
+    """, (user_id, d_start, d_end))
     month_expenses = cursor.fetchall()
 
     cursor.execute("""
@@ -743,9 +755,9 @@ def download_report(month):
         FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.id
         WHERE t.user_id=%s AND t.type='expense'
-        AND DATE_FORMAT(t.date,'%%Y-%%m')=%s
+        AND t.`date`>=%s AND t.`date`<%s
         GROUP BY c.name
-    """, (user_id, month))
+    """, (user_id, d_start, d_end))
     spent_map_dl = {row['category_name'].lower(): float(row['spent']) for row in cursor.fetchall()}
     budgets_raw = [
         {
@@ -807,8 +819,8 @@ def chart_data():
 
     # Fetch all transactions and group by month in Python to avoid MySQL DATE_FORMAT alias issues
     cursor.execute("""
-        SELECT date, type, amount FROM transactions WHERE user_id=%s
-        ORDER BY date
+        SELECT `date`, type, amount FROM transactions WHERE user_id=%s
+        ORDER BY `date`
     """, (user_id,))
     rows = cursor.fetchall()
     monthly = {}
