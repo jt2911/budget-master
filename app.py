@@ -278,7 +278,7 @@ def dashboard():
         SELECT c.name as category_name, COALESCE(SUM(t.amount),0) as spent
         FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.id
-        WHERE t.user_id=%s AND t.type='expense'
+        WHERE t.user_id=%s
         AND t.`date`>=%s AND t.`date`<%s
         GROUP BY c.name
     """, (user_id, m_start, m_end))
@@ -487,7 +487,7 @@ def budget():
         SELECT c.name as category_name, COALESCE(SUM(t.amount),0) as spent
         FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.id
-        WHERE t.user_id=%s AND t.type='expense'
+        WHERE t.user_id=%s
         AND t.`date`>=%s AND t.`date`<%s
         GROUP BY c.name
     """, (user_id, m_start, m_end))
@@ -599,7 +599,7 @@ def insights():
         SELECT c.name as category_name, COALESCE(SUM(t.amount),0) as spent
         FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.id
-        WHERE t.user_id=%s AND t.type='expense'
+        WHERE t.user_id=%s
         AND t.`date`>=%s AND t.`date`<%s
         GROUP BY c.name
     """, (user_id, m_start, m_end))
@@ -754,7 +754,7 @@ def download_report(month):
         SELECT c.name as category_name, COALESCE(SUM(t.amount),0) as spent
         FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.id
-        WHERE t.user_id=%s AND t.type='expense'
+        WHERE t.user_id=%s
         AND t.`date`>=%s AND t.`date`<%s
         GROUP BY c.name
     """, (user_id, d_start, d_end))
