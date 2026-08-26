@@ -10,8 +10,7 @@ import psycopg2
 import psycopg2.extras
 import os
 from werkzeug.utils import secure_filename
-import smtplib
-from email.mime.text import MIMEText
+import requests
 
 app = Flask(__name__)
 app.jinja_env.globals['now'] = datetime.now
@@ -399,19 +398,23 @@ def forgot():
 
             reset_link = url_for('reset_password', token=token, _external=True)
             try:
-                gmail_user = os.environ.get('hellobudgetmaster@gmail.com')
-                gmail_password = os.environ.get('chgc scew jlgp bmzz')
-
-                msg = MIMEText(f'Click to reset your password (valid 1 hour):\n{reset_link}')
-                msg['Subject'] = 'Budget Master - Password Reset'
-                msg['From'] = gmail_user
-                msg['To'] = email
-
-                with smtplib.SMTP('smtp.gmail.com', 587) as server:
-                    server.starttls()
-                    server.login(gmail_user, gmail_password)
-                    server.sendmail(gmail_user, [email], msg.as_string())
-
+                brevo_response = requests.post(
+                    'https://api.brevo.com/v3/smtp/email',
+                    headers={
+                        'api-key': os.environ.get('BREVO_API_KEY'),
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    json={
+                        'sender': {'email': os.environ.get('hellobudgetmaster@gmail.com')},
+                        'to': [{'email': email}],
+                        'subject': 'Budget Master - Password Reset',
+                        'textContent': f'Click to reset your password (valid 1 hour):\n{reset_link}'
+                    },
+                    timeout=10
+                )
+                if brevo_response.status_code >= 300:
+                    raise Exception(brevo_response.text)
                 flash(f'Password reset link sent to {email}!', 'success')
             except Exception as e:
                 flash(f'Email error: {str(e)}', 'error')
