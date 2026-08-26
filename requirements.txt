@@ -2,4 +2,3 @@ flask
 gunicorn
 reportlab
 psycopg2-binary
-sendgrid
