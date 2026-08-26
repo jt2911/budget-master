@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}Shared Wallets - Budget Master{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <div class="page-header reveal">
+        <div class="page-title">
+            <h1><i class="fas fa-people-group"></i> Shared Wallets</h1>
+            <p>Pool money with roommates, friends, or project groups</p>
+        </div>
+    </div>
+
+    <div class="page-grid">
+        <!-- Create / Join Forms -->
+        <div class="form-section reveal">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-plus-circle"></i> Create a Wallet</h2>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('wallets') }}" class="wallet-form">
+                        <input type="hidden" name="action" value="create">
+                        <div class="form-group">
+                            <label for="name">Wallet Name</label>
+                            <input type="text" id="name" name="name" required
+                                   placeholder="e.g., Apartment 4B, Bali Trip">
+                        </div>
+                        <div class="form-group">
+                            <label for="description">Description (Optional)</label>
+                            <input type="text" id="description" name="description"
+                                   placeholder="What's this wallet for?">
+                        </div>
+                        <div class="form-group">
+                            <label for="monthly_limit">Monthly Group Budget (RM, Optional)</label>
+                            <input type="number" id="monthly_limit" name="monthly_limit"
+                                   min="1" step="1" placeholder="e.g., 1000">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fas fa-plus"></i> Create Wallet
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card tips-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-door-open"></i> Join a Wallet</h2>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('wallets') }}" class="wallet-form">
+                        <input type="hidden" name="action" value="join">
+                        <div class="form-group">
+                            <label for="invite_code">Invite Code</label>
+                            <input type="text" id="invite_code" name="invite_code" required
+                                   placeholder="e.g., AB12CD34" style="text-transform:uppercase;">
+                        </div>
+                        <button type="submit" class="btn btn-secondary btn-block">
+                            <i class="fas fa-right-to-bracket"></i> Join Wallet
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- My Wallets -->
+        <div class="list-section reveal">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-wallet"></i> Your Wallets</h2>
+                </div>
+                <div class="card-body">
+                    {% if wallets %}
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:16px;">
+                        {% for w in wallets %}
+                        <a href="{{ url_for('wallet_detail', wallet_id=w.id) }}" class="budget-card" style="padding:18px; display:block; text-decoration:none; color:inherit;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                                <h3 style="margin:0;">{{ w.name }}</h3>
+                                {% if w.role == 'owner' %}
+                                <span class="budget-status success"><i class="fas fa-crown"></i> Owner</span>
+                                {% else %}
+                                <span class="budget-status warning"><i class="fas fa-user"></i> Member</span>
+                                {% endif %}
+                            </div>
+                            {% if w.description %}
+                            <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">{{ w.description }}</p>
+                            {% endif %}
+                            <div class="budget-amounts">
+                                <div class="spent">
+                                    <span class="label">Members</span>
+                                    <span class="value">{{ w.member_count }}</span>
+                                </div>
+                                <div class="remaining">
+                                    <span class="label">Total Spent</span>
+                                    <span class="value">RM{{ "%.2f"|format(w.total_spent) }}</span>
+                                </div>
+                            </div>
+                            <div style="margin-top:12px; font-size:12px; color:var(--text-muted);">
+                                <i class="fas fa-key"></i> Invite code: <strong>{{ w.invite_code }}</strong>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-people-group"></i>
+                        <h3>No Shared Wallets Yet</h3>
+                        <p>Create a wallet to start splitting expenses with roommates, friends, or your project group.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

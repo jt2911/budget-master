@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block title %}Receipt Vault - Budget Master{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <div class="page-header reveal">
+        <div class="page-title">
+            <h1><i class="fas fa-box-archive"></i> Digital Receipt Vault</h1>
+            <p>All your receipts, securely stored and searchable</p>
+        </div>
+    </div>
+
+    <!-- Vault Stats -->
+    <div class="stats-grid reveal" style="margin-bottom: 24px;">
+        <div class="stat-card balance">
+            <div class="stat-icon"><i class="fas fa-receipt"></i></div>
+            <div class="stat-info">
+                <span class="stat-label">Total Receipts</span>
+                <span class="stat-value">{{ total_count }}</span>
+            </div>
+        </div>
+        <div class="stat-card income">
+            <div class="stat-icon"><i class="fas fa-database"></i></div>
+            <div class="stat-info">
+                <span class="stat-label">Storage Used</span>
+                <span class="stat-value">{{ "%.2f"|format(total_size / 1024 / 1024) }} MB</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="card reveal" style="margin-bottom: 24px;">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('vault') }}" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+                <div class="form-group" style="flex:1; min-width:200px; margin-bottom:0;">
+                    <label for="search"><i class="fas fa-search"></i> Search</label>
+                    <input type="text" id="search" name="search" value="{{ search }}"
+                           placeholder="Search by description or filename...">
+                </div>
+                <div class="form-group" style="min-width:200px; margin-bottom:0;">
+                    <label for="category"><i class="fas fa-tag"></i> Category</label>
+                    <select id="category" name="category">
+                        <option value="">All categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if cat == category_filter %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+                {% if search or category_filter %}
+                <a href="{{ url_for('vault') }}" class="btn btn-secondary"><i class="fas fa-times"></i> Clear</a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Receipts Grid -->
+    <div class="card reveal">
+        <div class="card-header">
+            <h2><i class="fas fa-folder-open"></i> Stored Receipts</h2>
+        </div>
+        <div class="card-body">
+            {% if receipts %}
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:16px;">
+                {% for r in receipts %}
+                <div class="budget-card" style="padding:16px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                        <span class="category-badge">{{ r.category or 'Uncategorized' }}</span>
+                        {% if r.mime_type and 'pdf' in r.mime_type %}
+                        <i class="fas fa-file-pdf" style="color:#ef4444; font-size:20px;"></i>
+                        {% else %}
+                        <i class="fas fa-file-image" style="color:#6366f1; font-size:20px;"></i>
+                        {% endif %}
+                    </div>
+
+                    <div style="font-size:14px; color:var(--text-muted); margin-bottom:6px;">
+                        <i class="fas fa-calendar-alt"></i> {{ r.transaction_date }}
+                    </div>
+                    <div style="font-weight:600; margin-bottom:4px;">
+                        RM{{ "%.2f"|format(r.amount) }}
+                    </div>
+                    <div style="font-size:13px; color:var(--text-muted); margin-bottom:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        {{ r.description or r.filename }}
+                    </div>
+
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <a href="{{ url_for('view_receipt', receipt_id=r.id) }}" target="_blank"
+                           class="btn btn-sm btn-ghost" title="View">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                        <a href="{{ url_for('view_receipt', receipt_id=r.id, download=1) }}"
+                           class="btn btn-sm btn-ghost" title="Download">
+                            <i class="fas fa-download"></i> Download
+                        </a>
+                        <a href="{{ url_for('receipt_audit', receipt_id=r.id) }}"
+                           class="btn btn-sm btn-ghost" title="Audit Log">
+                            <i class="fas fa-clock-rotate-left"></i> Audit
+                        </a>
+                        <form method="POST" action="{{ url_for('delete_receipt', receipt_id=r.id) }}"
+                              onsubmit="return confirm('Delete this receipt? This cannot be undone.')">
+                            <button type="submit" class="btn-icon danger" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-box-archive"></i>
+                <h3>No Receipts Found</h3>
+                <p>Attach a receipt when adding a transaction on the
+                    <a href="{{ url_for('expenses') }}">Expenses</a> page and it'll show up here.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
