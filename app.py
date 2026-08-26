@@ -401,7 +401,7 @@ def forgot():
             try:
                 sg = sendgrid.SendGridAPIClient(api_key=os.environ.get('SENDGRID_API_KEY'))
                 message = SGMail(
-                    from_email='wongjt2006@gmail.com',
+                    from_email='hellobudgetmaster@gmail.com',
                     to_emails=email,
                     subject='Budget Master - Password Reset',
                     plain_text_content=f'Click to reset your password (valid 1 hour):\n{reset_link}'
