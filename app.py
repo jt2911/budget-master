@@ -6,7 +6,8 @@ from urllib.parse import urlparse
 import json
 import random
 import string
-import mysql.connector
+import psycopg2
+import psycopg2.extras
 import os
 from werkzeug.utils import secure_filename
 import sendgrid
@@ -16,29 +17,79 @@ app = Flask(__name__)
 app.jinja_env.globals['now'] = datetime.now
 app.secret_key = os.environ.get('SECRET_KEY', 'your-local-dev-secret-key')
 
-# ============== DATABASE CONNECTION ==============
+# ============== DATABASE CONNECTION (Postgres / Supabase) ==============
+# This wrapper lets the rest of the app keep calling db.cursor(dictionary=True,
+# buffered=True), cursor.execute(...), and cursor.lastrowid exactly as it did
+# with mysql.connector, even though the underlying driver is now psycopg2.
+
+class PGCursorWrapper:
+    def __init__(self, cursor):
+        self._cursor = cursor
+        self.lastrowid = None
+
+    def execute(self, query, params=None):
+        # MySQL used backticks for identifiers like `date`; Postgres uses
+        # double quotes instead, so convert automatically.
+        q = query.replace('`', '"')
+
+        stripped = q.strip().upper()
+        if stripped.startswith("INSERT") and "RETURNING" not in stripped:
+            # Emulate cursor.lastrowid by asking Postgres to return the new id.
+            q = q.rstrip().rstrip(';') + " RETURNING id"
+            self._cursor.execute(q, params)
+            row = self._cursor.fetchone()
+            if row:
+                self.lastrowid = row['id'] if isinstance(row, dict) else row[0]
+            return None
+
+        return self._cursor.execute(q, params)
+
+    def __getattr__(self, name):
+        return getattr(self._cursor, name)
+
+    def __iter__(self):
+        return iter(self._cursor)
+
+
+class PGConnectionWrapper:
+    def __init__(self, conn):
+        self._conn = conn
+
+    def cursor(self, dictionary=False, buffered=False, **kwargs):
+        # 'buffered' has no equivalent need in psycopg2 and is ignored.
+        cursor_factory = psycopg2.extras.RealDictCursor if dictionary else None
+        raw_cursor = self._conn.cursor(cursor_factory=cursor_factory)
+        return PGCursorWrapper(raw_cursor)
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+
 def get_db():
-    mysql_url = os.environ.get("MYSQL_PUBLIC_URL") or os.environ.get("MYSQL_URL")
-    if mysql_url:
-        parsed = urlparse(mysql_url)
-        conn = mysql.connector.connect(
+    # Set DATABASE_URL in Render's environment variables to your Supabase
+    # Session pooler connection string, e.g.:
+    # postgresql://postgres.xxxx:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url:
+        parsed = urlparse(db_url)
+        raw_conn = psycopg2.connect(
             host=parsed.hostname,
-            port=parsed.port or 3306,
+            port=parsed.port or 5432,
             user=parsed.username,
             password=parsed.password,
-            database=parsed.path.lstrip('/'),
-            consume_results=True
+            dbname=parsed.path.lstrip('/'),
+            sslmode='require'
         )
     else:
-        conn = mysql.connector.connect(
+        # Local fallback (e.g. a local Postgres install, not XAMPP/MySQL anymore)
+        raw_conn = psycopg2.connect(
             host="127.0.0.1",
-            port=3306,
-            user="root",
+            port=5432,
+            user="postgres",
             password="",
-            database="budget_master",
-            consume_results=True
+            dbname="budget_master"
         )
-    return conn
+    return PGConnectionWrapper(raw_conn)
 
 # ============== HELPERS ==============
 def month_range(ym_str):
