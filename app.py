@@ -10,8 +10,8 @@ import psycopg2
 import psycopg2.extras
 import os
 from werkzeug.utils import secure_filename
-import sendgrid
-from sendgrid.helpers.mail import Mail as SGMail, TrackingSettings, ClickTracking
+import smtplib
+from email.mime.text import MIMEText
 
 app = Flask(__name__)
 app.jinja_env.globals['now'] = datetime.now
@@ -399,17 +399,19 @@ def forgot():
 
             reset_link = url_for('reset_password', token=token, _external=True)
             try:
-                sg = sendgrid.SendGridAPIClient(api_key=os.environ.get('SENDGRID_API_KEY'))
-                message = SGMail(
-                    from_email='hellobudgetmaster@gmail.com',
-                    to_emails=email,
-                    subject='Budget Master - Password Reset',
-                    plain_text_content=f'Click to reset your password (valid 1 hour):\n{reset_link}'
-                )
-                tracking = TrackingSettings()
-                tracking.click_tracking = ClickTracking(enable=False, enable_text=False)
-                message.tracking_settings = tracking
-                sg.send(message)
+                gmail_user = os.environ.get('hellobudgetmaster@gmail.com')
+                gmail_password = os.environ.get('chgc scew jlgp bmzz')
+
+                msg = MIMEText(f'Click to reset your password (valid 1 hour):\n{reset_link}')
+                msg['Subject'] = 'Budget Master - Password Reset'
+                msg['From'] = gmail_user
+                msg['To'] = email
+
+                with smtplib.SMTP('smtp.gmail.com', 587) as server:
+                    server.starttls()
+                    server.login(gmail_user, gmail_password)
+                    server.sendmail(gmail_user, [email], msg.as_string())
+
                 flash(f'Password reset link sent to {email}!', 'success')
             except Exception as e:
                 flash(f'Email error: {str(e)}', 'error')
