@@ -50,6 +50,9 @@
             <ul class="nav-menu" id="navMenu">
                 <li><a href="{{ url_for('dashboard') }}" class="nav-link"><i class="fas fa-chart-pie"></i> Dashboard</a></li>
                 <li><a href="{{ url_for('expenses') }}" class="nav-link"><i class="fas fa-receipt"></i> Expenses</a></li>
+                <li><a href="{{ url_for('vault') }}" class="nav-link"><i class="fas fa-box-archive"></i> Vault</a></li>
+                <li><a href="{{ url_for('wallets') }}" class="nav-link"><i class="fas fa-people-group"></i> Wallets</a></li>
+                <li><a href="{{ url_for('rewards') }}" class="nav-link"><i class="fas fa-trophy"></i> Rewards</a></li>
                 <li><a href="{{ url_for('budget') }}" class="nav-link"><i class="fas fa-piggy-bank"></i> Budget</a></li>
                 <li><a href="{{ url_for('loans') }}" class="nav-link"><i class="fas fa-hand-holding-usd"></i> Loans</a></li>
                 <li><a href="{{ url_for('insights') }}" class="nav-link"><i class="fas fa-lightbulb"></i> Insights</a></li>
@@ -110,5 +113,3 @@
     {% block scripts %}{% endblock %}
 </body>
 </html>
-
-
