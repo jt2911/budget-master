@@ -1,5 +1,5 @@
 flask
 gunicorn
 reportlab
-mysql-connector-python
+psycopg2-binary
 sendgrid
