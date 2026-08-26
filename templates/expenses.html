@@ -19,7 +19,7 @@
                     <h2><i class="fas fa-plus-circle"></i> Add Transaction</h2>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('expenses') }}" class="transaction-form">
+                    <form method="POST" action="{{ url_for('expenses') }}" class="transaction-form" enctype="multipart/form-data">
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="date">Date</label>
@@ -64,6 +64,16 @@
                             <input type="text" id="note" name="note" 
                                    placeholder="e.g., Lunch with colleagues">
                         </div>
+
+                        <div class="form-group">
+                            <label for="receipt">
+                                <i class="fas fa-camera"></i> Receipt Photo (Optional)
+                            </label>
+                            <input type="file" id="receipt" name="receipt" accept="image/*,.pdf">
+                            <small style="color: var(--text-muted); font-size: 12px;">
+                                JPG, PNG, GIF, WEBP or PDF, up to 5MB. Saved to your Receipt Vault.
+                            </small>
+                        </div>
                         
                         <button type="submit" class="btn btn-primary btn-block">
                             <i class="fas fa-save"></i> Save Transaction
@@ -93,6 +103,7 @@
                                     <th>Note</th>
                                     <th>Type</th>
                                     <th>Amount</th>
+                                    <th>Receipt</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -111,6 +122,18 @@
                                     </td>
                                     <td class="amount-cell {{ expense.type }}">
                                         {% if expense.type == 'income' %}+{% else %}-{% endif %}RM{{ "%.2f"|format(expense.amount) }}
+                                    </td>
+                                    <td>
+                                        {% if expense.receipt_id %}
+                                        <a href="{{ url_for('view_receipt', receipt_id=expense.receipt_id) }}" target="_blank"
+                                           class="btn-icon" title="View receipt">
+                                            <i class="fas fa-file-circle-check" style="color:#10b981;"></i>
+                                        </a>
+                                        {% else %}
+                                        <span title="No receipt attached" style="color:var(--text-muted);">
+                                            <i class="fas fa-file-circle-xmark"></i>
+                                        </span>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         <!-- Edit Button -->
@@ -159,7 +182,7 @@
         <h3 style="margin:0 0 1.25rem; font-size:1.1rem;">
             <i class="fas fa-pencil-alt"></i> Edit Transaction
         </h3>
-        <form method="POST" id="editForm" action="">
+        <form method="POST" id="editForm" action="" enctype="multipart/form-data">
             <div class="form-row">
                 <div class="form-group">
                     <label for="edit_date">Date</label>
@@ -198,6 +221,13 @@
             <div class="form-group">
                 <label for="edit_note">Note (Optional)</label>
                 <input type="text" id="edit_note" name="note" placeholder="e.g., Lunch with colleagues">
+            </div>
+            <div class="form-group">
+                <label for="edit_receipt"><i class="fas fa-camera"></i> Attach/Replace Receipt (Optional)</label>
+                <input type="file" id="edit_receipt" name="receipt" accept="image/*,.pdf">
+                <small style="color: var(--text-muted); font-size: 12px;">
+                    Uploading a new file adds another receipt to this transaction's vault entry.
+                </small>
             </div>
             <div style="display:flex; gap:0.75rem; margin-top:1.25rem; justify-content:flex-end;">
                 <button type="button" class="btn btn-secondary" onclick="closeEditModal()">
@@ -249,4 +279,3 @@ document.getElementById('editModal').addEventListener('click', function(e) {
 });
 </script>
 {% endblock %}
-
