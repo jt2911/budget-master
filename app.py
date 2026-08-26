@@ -71,15 +71,10 @@ def get_db():
     # postgresql://postgres.xxxx:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres
     db_url = os.environ.get("DATABASE_URL")
     if db_url:
-        parsed = urlparse(db_url)
-        raw_conn = psycopg2.connect(
-            host=parsed.hostname,
-            port=parsed.port or 5432,
-            user=parsed.username,
-            password=parsed.password,
-            dbname=parsed.path.lstrip('/'),
-            sslmode='require'
-        )
+        # Hand the URL straight to psycopg2 instead of parsing it ourselves —
+        # psycopg2 parses connection URIs natively and more reliably than
+        # manually splitting it with urlparse.
+        raw_conn = psycopg2.connect(db_url, sslmode='require')
     else:
         # Local fallback (e.g. a local Postgres install, not XAMPP/MySQL anymore)
         raw_conn = psycopg2.connect(
