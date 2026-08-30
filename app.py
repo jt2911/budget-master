@@ -406,7 +406,7 @@ def forgot():
                         'Accept': 'application/json'
                     },
                     json={
-                        'sender': {'email': os.environ.get('hellobudgetmaster@gmail.com')},
+                        'sender': {'email': os.environ.get('BREVO_FROM_EMAIL')},
                         'to': [{'email': email}],
                         'subject': 'Budget Master - Password Reset',
                         'textContent': f'Click to reset your password (valid 1 hour):\n{reset_link}'
