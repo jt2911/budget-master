@@ -1485,6 +1485,19 @@ def rewards():
         earned_count=len(earned_map),
         total_badges=len(BADGES))
 
+# ============== TEMPORARY DEBUG ROUTE — remove after diagnosing ==============
+@app.route('/debug-templates')
+def debug_templates():
+    import os
+    template_dir = os.path.join(app.root_path, 'templates')
+    try:
+        files = sorted(os.listdir(template_dir))
+    except Exception as e:
+        return f"Could not list {template_dir}: {e}", 500
+    lines = [f"app.root_path: {app.root_path}", f"template_dir: {template_dir}", "", "Files found:"]
+    lines += [f"  - {f}" for f in files]
+    return "<pre>" + "\n".join(lines) + "</pre>"
+
 # ============== RUN ==============
 if __name__ == "__main__":
     app.run(debug=True)
