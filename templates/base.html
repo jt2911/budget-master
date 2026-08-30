@@ -61,7 +61,9 @@
             
             <div class="nav-user">
                 <span class="user-name"><i class="fas fa-user-circle"></i> {{ session.username }}</span>
-                <a href="{{ url_for('logout') }}" class="btn-logout"><i class="fas fa-sign-out-alt">Logout</i></a>
+                <a href="{{ url_for('logout') }}" class="btn-logout" title="Logout">
+                <i class="fas fa-sign-out-alt"></i>
+                </a>
             </div>
         </div>
     </nav>
