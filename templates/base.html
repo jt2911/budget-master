@@ -4,21 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Budget Master{% endblock %}</title>
-
+    
     <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-
+    <link rel="preconnect" href="[fonts.googleapis.com](https://fonts.googleapis.com)">
+    <link href="[fonts.googleapis.com](https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap)" rel="stylesheet">
+    
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
+    <link rel="stylesheet" href="[cdnjs.cloudflare.com](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css)">
+    
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
+</head> 
+</body>
     <!-- Loading Screen -->
     <div id="loader" class="loader">
         <div class="loader-content">
@@ -40,13 +40,13 @@
                 <i class="fas fa-wallet"></i>
                 <span>Budget Master</span>
             </a>
-
+            
             <button class="nav-toggle" id="navToggle">
                 <span></span>
                 <span></span>
                 <span></span>
             </button>
-
+            
             <ul class="nav-menu" id="navMenu">
                 <li><a href="{{ url_for('dashboard') }}" class="nav-link"><i class="fas fa-chart-pie"></i> Dashboard</a></li>
                 <li><a href="{{ url_for('expenses') }}" class="nav-link"><i class="fas fa-receipt"></i> Expenses</a></li>
@@ -59,7 +59,7 @@
                 <li><a href="{{ url_for('report') }}" class="nav-link"><i class="fas fa-file-alt"></i> Reports</a></li>
                 <li><a href="{{ url_for('about') }}" class="nav-link"><i class="fas fa-info-circle"></i> About</a></li>
             </ul>
-
+            
             <div class="nav-user">
                 <span class="user-name"><i class="fas fa-user-circle"></i> {{ session.username }}</span>
                 <a href="{{ url_for('logout') }}" class="btn-logout"><i class="fas fa-sign-out-alt">Logout</i></a>
