@@ -86,15 +86,15 @@
 
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
                         <a href="{{ url_for('view_receipt', receipt_id=r.id) }}" target="_blank"
-                           class="btn btn-sm btn-ghost" title="View">
+                           class="class="btn btn-sm btn-ghost-light" title="View">
                             <i class="fas fa-eye"></i> View
                         </a>
                         <a href="{{ url_for('view_receipt', receipt_id=r.id, download=1) }}"
-                           class="btn btn-sm btn-ghost" title="Download">
+                           class="btn btn-sm btn-ghost-light" title="Download">
                             <i class="fas fa-download"></i> Download
                         </a>
                         <a href="{{ url_for('receipt_audit', receipt_id=r.id) }}"
-                           class="btn btn-sm btn-ghost" title="Audit Log">
+                           class="btn btn-sm btn-ghost-light" title="Audit Log">
                             <i class="fas fa-clock-rotate-left"></i> Audit
                         </a>
                         <form method="POST" action="{{ url_for('delete_receipt', receipt_id=r.id) }}"
